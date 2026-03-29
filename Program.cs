@@ -86,6 +86,7 @@ builder.Services
 // ------------------------------------- Services Interface -------------------------------------
 builder.Services.AddScoped<ITouristPlaceService, TouristPlaceService>();
 builder.Services.AddScoped<ITouristAreaService, TouristAreaService>();
+builder.Services.AddScoped<ITourService, TourService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();

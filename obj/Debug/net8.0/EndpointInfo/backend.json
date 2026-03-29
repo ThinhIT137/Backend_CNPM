@@ -153,6 +153,18 @@
         }
       }
     },
+    "/api/Home/index": {
+      "get": {
+        "tags": [
+          "Home"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Home/tour": {
       "get": {
         "tags": [
@@ -280,7 +292,7 @@
       }
     },
     "/api/TouristArea/DetailTouristArea": {
-      "get": {
+      "post": {
         "tags": [
           "TouristArea"
         ],
@@ -377,12 +389,33 @@
         },
         "additionalProperties": false
       },
+      "TourismProductRequest": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "TouristAreaDetailRequest": {
         "type": "object",
         "properties": {
           "id": {
             "type": "integer",
             "format": "int32"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "tourismProduct": {
+            "$ref": "#/components/schemas/TourismProductRequest"
           }
         },
         "additionalProperties": false

@@ -4,6 +4,7 @@ using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
@@ -27,6 +28,47 @@ namespace backend.Controllers
             _context = context;
             _touristAreaService = touristAreaService;
             _jwtService = jwtService;
+        }
+
+        [HttpGet("index")]
+        public async Task<IActionResult> Index()
+        {
+            var dataTouristArea = await _touristAreaService.GetTrendingTouristAreasAsync(1, 10);
+            var touristAreaIds = dataTouristArea.Items.Select(t => t.Id).ToList();
+            var images = await _context.Imgs.Where(img => img.EntityType == "tourist_area" && touristAreaIds.Contains(img.EntityId)).ToListAsync();
+
+            var dataTouristPlace = "";
+            var dataHottels = "";
+            var dataTour = "";
+
+            var dataResult = new
+            {
+                touristArea = dataTouristArea.Items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    description = a.Description,
+                    rating_average = a.RatingAverage,
+                    click_count = a.ClickCount,
+                    favorite_count = a.FavoriteCount,
+                    trending_Score = Math.Round((a.RatingAverage * 10m) + (a.FavoriteCount * 2m) + (a.ClickCount * 0.1m), 2),
+                    latitude = a.Latitude,
+                    longitude = a.Longitude,
+                    type = "tourist_area",
+                    images = images.Where(img => img.EntityId == a.Id).ToList(),
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+                }),
+            };
+
+
+            return Ok(new
+            {
+                success = true,
+                message = "Thành công",
+                data = dataResult
+            });
         }
 
         [HttpGet("tour")]

@@ -14,11 +14,13 @@ namespace backend.Services
     {
         private readonly CnpmContext _context;
         private readonly ITouristPlaceService _touristPlaceService;
+        private readonly ITourService _tourService;
 
-        public TouristAreaService(CnpmContext context, ITouristPlaceService touristPlaceService)
+        public TouristAreaService(CnpmContext context, ITouristPlaceService touristPlaceService, ITourService tourService)
         {
             _context = context;
             _touristPlaceService = touristPlaceService;
+            _tourService = tourService;
         }
 
         public async Task<PagedResult<Tourist_Area>> GetTrendingTouristAreasAsync(User u, int page = 1, int pageSize = 10)
@@ -63,26 +65,52 @@ namespace backend.Services
                 CurrentPage = page
             };
         }
-        public async Task<TouristAreaDetailResponse> GetDetailTouristAreasAsync(int id, int page = 1, int pageSize = 10)
+        public async Task<TouristAreaDetailResponse> GetDetailTouristAreasAsync(int id, string type, int page = 1, int pageSize = 10)
         {
-            var Page_Result_Tourist_Place = await _touristPlaceService.GetPagedResult(id, page, pageSize);
 
-            if (Page_Result_Tourist_Place == null)
+            // Lấy tour place 
+            if (type == "TouristPlace")
             {
-                throw new BadRequestException("Địa điểm du lịch tại khu du lịch đang trống");
-            }
 
-            var data = await _context.TouristAreas.Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
+                var Page_Result_Tourist_Place = await _touristPlaceService.GetPagedResult(id, page, pageSize);
+
+                if (Page_Result_Tourist_Place == null)
+                {
+                    throw new BadRequestException("Địa điểm du lịch tại khu du lịch đang trống");
+                }
+
+                var dataTourist = await _context.TouristAreas.Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
                             .Skip((page - 1) * pageSize)
                             .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
-            if (data == null)
+                if (dataTourist == null)
+                    throw new BadRequestException("Lấy dữ liệu không thành công");
+
+                return new TouristAreaDetailResponse
+                {
+                    tourist_Area_Detail = dataTourist,
+                    TouristPlaces = Page_Result_Tourist_Place
+                };
+            }
+
+            // Lấy tour 
+            var Page_Result_Tour = await _tourService.GetPagedResult(id, page, pageSize);
+
+            if (Page_Result_Tour == null)
+            {
+                throw new BadRequestException("Chuyến du lịch tại khu du lịch đang trống");
+            }
+
+            var dataTourist_Tour = await _context.TouristAreas.Include(ti => ti.Tours.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
+            if (dataTourist_Tour == null)
                 throw new BadRequestException("Lấy dữ liệu không thành công");
+
             return new TouristAreaDetailResponse
             {
-                Tourist_Area_Detail = data,
-                PagedResult = Page_Result_Tourist_Place
+                tourist_Area_Detail = dataTourist_Tour,
+                Tours = Page_Result_Tour
             };
         }
-
     }
 }

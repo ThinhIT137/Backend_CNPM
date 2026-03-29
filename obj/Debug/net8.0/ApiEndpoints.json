@@ -101,6 +101,16 @@
   },
   {
     "ContainingType": "backend.Controllers.HomeController",
+    "Method": "Index",
+    "RelativePath": "api/Home/index",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.HomeController",
     "Method": "Tours",
     "RelativePath": "api/Home/tour",
     "HttpMethod": "GET",
@@ -135,7 +145,7 @@
     "ContainingType": "backend.Controllers.TouristAreaController",
     "Method": "DetailTouristArea",
     "RelativePath": "api/TouristArea/DetailTouristArea",
-    "HttpMethod": "GET",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [

@@ -21,6 +21,9 @@ namespace backend.Controllers
         private readonly IAuthService _authService;
         private readonly IEmailService _emailService;
 
+        private readonly int AccessTokenMinutes;
+        private readonly int RefreshTokenDays;
+
         public AuthController(CnpmContext context, IConfiguration config, IJwtService jwtService, IAuthService authService, IEmailService emailService)
         {
             _context = context;
@@ -28,6 +31,9 @@ namespace backend.Controllers
             _jwtService = jwtService;
             _authService = authService;
             _emailService = emailService;
+
+            AccessTokenMinutes = int.Parse(_config["Jwt:AccessTokenMinutes"] ?? "15");
+            RefreshTokenDays = int.Parse(_config["Jwt:RefreshTokenDays"] ?? "7");
         }
 
         [AllowAnonymous]
@@ -61,13 +67,20 @@ namespace backend.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires = DateTime.Now.AddDays(7)
+                Expires = DateTime.Now.AddDays(RefreshTokenDays)
             });
 
             return Ok(new AuthResponse
             {
                 AccessToken = accessToken,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = DateTime.Now.AddMinutes(AccessTokenMinutes),
+                info = new UserResponse
+                {
+                    name = user.Name,
+                    email = user.Email,
+                    avt = user.Avt,
+                    role = user.Role
+                }
             });
         }
 
@@ -106,13 +119,20 @@ namespace backend.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires = DateTime.Now.AddDays(7)
+                Expires = DateTime.Now.AddDays(RefreshTokenDays)
             });
 
             return Ok(new AuthResponse
             {
                 AccessToken = accessToken,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = DateTime.Now.AddMinutes(AccessTokenMinutes),
+                info = new UserResponse
+                {
+                    name = user.Name,
+                    email = user.Email,
+                    avt = user.Avt,
+                    role = user.Role
+                }
             });
         }
 
@@ -177,7 +197,7 @@ namespace backend.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires = DateTime.Now.AddDays(7)
+                Expires = DateTime.Now.AddDays(RefreshTokenDays)
             });
 
             Console.WriteLine("4");
@@ -185,7 +205,14 @@ namespace backend.Controllers
             return Ok(new AuthResponse
             {
                 AccessToken = newAccessToken,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = DateTime.Now.AddMinutes(AccessTokenMinutes),
+                info = new UserResponse
+                {
+                    name = user.Name,
+                    email = user.Email,
+                    avt = user.Avt,
+                    role = user.Role
+                }
             });
         }
 
@@ -222,13 +249,20 @@ namespace backend.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires = DateTime.Now.AddDays(7)
+                Expires = DateTime.Now.AddDays(RefreshTokenDays)
             });
 
             return Ok(new AuthResponse
             {
                 AccessToken = accessToken,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = DateTime.Now.AddMinutes(AccessTokenMinutes),
+                info = new UserResponse
+                {
+                    name = user.Name,
+                    email = user.Email,
+                    avt = user.Avt,
+                    role = user.Role
+                }
             });
         }
     }
