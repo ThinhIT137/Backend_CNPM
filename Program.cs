@@ -7,6 +7,7 @@ using backend.Middlewares;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using backend.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // Bỏ qua lỗi vòng lặp vô tận khi convert object lồng nhau sang JSON
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 // ------------------------------------- giới hạn request ----------------------------------
 builder.Services.AddRateLimiter(options =>
 {
@@ -41,19 +47,6 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// ------------------------------------- vercel ----------------------------------
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFE", policy =>
-    {
-        policy.WithOrigins("https://utctrek.vercel.app")
-              .AllowAnyHeader()
-              .AllowAnyMethod().AllowCredentials();
-
-    });
-});
-// -------------------------------------------------------------------------------
-
 // ------------------------------------- nextJs ----------------------------------
 builder.Services.AddCors(options =>  // cho phép FrontEnd đọc 
 {
@@ -61,7 +54,7 @@ builder.Services.AddCors(options =>  // cho phép FrontEnd đọc
         policy =>
         {
             policy
-                .WithOrigins("http://localhost:3000")
+                .WithOrigins("http://localhost:3000", "https://utctrek.vercel.app")
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -114,7 +107,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowNextJs");
-app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
@@ -127,4 +119,4 @@ app.UseAuthorization();
 
 app.MapControllers().RequireRateLimiting("api");
 app.Run($"http://0.0.0.0:{port}");
-app.Run();
+//app.Run();
