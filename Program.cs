@@ -48,7 +48,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("https://utctrek.vercel.app")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod().AllowCredentials();
+
     });
 });
 // -------------------------------------------------------------------------------
@@ -113,6 +114,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowNextJs");
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
