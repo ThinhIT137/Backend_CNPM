@@ -41,6 +41,18 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+// ------------------------------------- vercel ----------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFE", policy =>
+    {
+        policy.WithOrigins("https://utctrek.vercel.app")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+// -------------------------------------------------------------------------------
+
 // ------------------------------------- nextJs ----------------------------------
 builder.Services.AddCors(options =>  // cho phép FrontEnd đọc 
 {
