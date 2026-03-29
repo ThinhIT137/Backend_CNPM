@@ -93,8 +93,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // ------------------------------------------------------------------------------
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -113,5 +112,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers().RequireRateLimiting("api");
-
+app.Run($"http://0.0.0.0:{port}");
 app.Run();
