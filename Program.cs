@@ -93,6 +93,7 @@ builder.Services
 builder.Services.AddScoped<ITouristPlaceService, TouristPlaceService>();
 builder.Services.AddScoped<ITouristAreaService, TouristAreaService>();
 builder.Services.AddScoped<ITourService, TourService>();
+builder.Services.AddScoped<IHottelService, HottelService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();

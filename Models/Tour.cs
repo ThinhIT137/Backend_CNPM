@@ -14,6 +14,15 @@ namespace backend.Models
         public string? Title { get; set; }
         public int? DurationDays { get; set; }
         public int? NumberOfPeople { get; set; }
+        public string? DepartureLocationName { get; set; } // VD: "Hà Nội", "Sân bay Tân Sơn Nhất", "Bến xe Miền Đông"
+        [Column(TypeName = "decimal(18, 10)")]
+        public decimal? DepartureLatitude { get; set; }
+
+        [Column(TypeName = "decimal(18, 10)")]
+        public decimal? DepartureLongitude { get; set; }
+        public string? Vehicle { get; set; }           // Phương tiện (VD: "Ô tô, Máy bay", "Tàu hỏa")
+        public string? TourType { get; set; }          // Loại tour (VD: "Ghép đoàn", "Riêng tư")
+        public string? Status { get; set; }
         public Guid? Created_By_UserId { get; set; }
         public int Tourist_Area_Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;

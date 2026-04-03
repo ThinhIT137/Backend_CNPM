@@ -1,10 +1,13 @@
-﻿using backend.Models;
+﻿using backend.DTO;
+using backend.Models;
 
 namespace backend.Services
 {
     public interface IHottelService
     {
-        Task<List<Tourist_Area>> GetTrendingTouristAreasAsync(User u, int page = 1, int pageSize = 10);
-        Task<List<Tourist_Area>> GetTrendingTouristAreasAsync(int page = 1, int pageSize = 10);
+        public Task<object> GetTrendingHottelAsync(int page = 1, int pageSize = 10);
+        public Task<object> GetTrendingHottelAsync(User u, int page = 1, int pageSize = 10);
+        public Task<PagedResult<Hottel>> GetHotelsByTouristPlaceId(int touristPlaceId, User? user, int page = 1, int pageSize = 10);
+        public Task<object> GetHotelDetailAsync(int id, User? user);
     }
 }

@@ -171,6 +171,9 @@ public partial class CnpmContext : DbContext
             entity.Property(e => e.ClickCount)
                   .HasColumnName("click_count").HasDefaultValue(0);
 
+            entity.Property(e => e.Price)
+                  .HasColumnName("price");
+
             entity.Property(e => e.RatingTotal)
                   .HasColumnName("rating_total").HasDefaultValue(0);
 
@@ -321,6 +324,24 @@ public partial class CnpmContext : DbContext
 
             entity.Property(e => e.NumberOfPeople)
                 .HasColumnName("number_of_people");
+
+            entity.Property(e => e.DepartureLocationName)
+               .HasColumnName("DepartureLocationName");
+
+            entity.Property(e => e.DepartureLatitude)
+                  .HasColumnName("DepartureLatitude");
+
+            entity.Property(e => e.DepartureLongitude)
+                  .HasColumnName("DepartureLongitude");
+
+            entity.Property(e => e.Vehicle)
+               .HasColumnName("Vehicle");
+
+            entity.Property(e => e.TourType)
+               .HasColumnName("TourType");
+
+            entity.Property(e => e.Status)
+               .HasColumnName("Status");
 
             entity.Property(e => e.Price)
                 .HasColumnName("price");

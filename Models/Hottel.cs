@@ -24,6 +24,7 @@ namespace backend.Models
         public decimal RatingAverage { get; set; } = 0;
         public int FavoriteCount { get; set; } = 0;
         public int ClickCount { get; set; } = 0;
+        public decimal? Price { get; set; }
 
         // FK
         [ForeignKey("Created_By_UserId")]

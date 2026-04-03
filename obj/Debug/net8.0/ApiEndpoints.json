@@ -142,6 +142,80 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "backend.Controllers.HottelController",
+    "Method": "GetDetail",
+    "RelativePath": "api/Hottel/detail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.HottelController",
+    "Method": "GetList",
+    "RelativePath": "api/Hottel/list",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.TourController",
+    "Method": "DetailTour",
+    "RelativePath": "api/Tour/detail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.TourController",
+    "Method": "GetTour",
+    "RelativePath": "api/Tour/tour",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "backend.Controllers.TouristAreaController",
     "Method": "DetailTouristArea",
     "RelativePath": "api/TouristArea/DetailTouristArea",
@@ -151,7 +225,23 @@
     "Parameters": [
       {
         "Name": "req",
-        "Type": "backend.DTO.TouristAreaDetailRequest",
+        "Type": "backend.DTO.TourismProductDetailRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.TouristAreaController",
+    "Method": "DetailTouristAreaUser",
+    "RelativePath": "api/TouristArea/DetailTouristAreaUser",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "req",
+        "Type": "backend.DTO.TourismProductDetailRequest",
         "IsRequired": true
       }
     ],
@@ -182,6 +272,43 @@
     "ContainingType": "backend.Controllers.TouristAreaController",
     "Method": "tourist_area_user",
     "RelativePath": "api/TouristArea/tourist_area_user",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.TouristPlaceController",
+    "Method": "GetTouristPlaceDetail",
+    "RelativePath": "api/TouristPlace/detail",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "req",
+        "Type": "backend.DTO.TourismProductDetailRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "backend.Controllers.TouristPlaceController",
+    "Method": "TouristPlace",
+    "RelativePath": "api/TouristPlace/tourist_place",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,

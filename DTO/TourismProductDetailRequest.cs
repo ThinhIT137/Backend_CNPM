@@ -1,6 +1,6 @@
 ﻿namespace backend.DTO
 {
-    public class TouristAreaDetailRequest
+    public class TourismProductDetailRequest
     {
         public int id { get; set; }
         public string type { get; set; }
