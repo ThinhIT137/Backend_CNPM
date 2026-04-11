@@ -19,13 +19,21 @@ public partial class CnpmContext : DbContext
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<Tourist_Area> TouristAreas { get; set; }
     public virtual DbSet<Tourist_Place> TouristPlaces { get; set; }
-    public virtual DbSet<Hottel> Hottels { get; set; }
+    public virtual DbSet<Hotel> Hotels { get; set; }
     public virtual DbSet<Tour> Tours { get; set; }
     public virtual DbSet<Tour_Itinerary> TourItineraries { get; set; }
     public virtual DbSet<Favorite> Favorites { get; set; }
     public virtual DbSet<Review> Reviews { get; set; }
     public virtual DbSet<Img> Imgs { get; set; }
-
+    public virtual DbSet<Advertisement> Advertisements { get; set; }
+    public virtual DbSet<Marker> Markers { get; set; }
+    public virtual DbSet<Report> Reports { get; set; }
+    public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<Booking> Bookings { get; set; }
+    public virtual DbSet<Booking_Detail> BookingDetails { get; set; }
+    public virtual DbSet<Hotel_Room> HotelRooms { get; set; }
+    public virtual DbSet<Tour_Departure> TourDepartures { get; set; }
+    public virtual DbSet<Feedback> Feedbacks { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -46,7 +54,14 @@ public partial class CnpmContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("id");
-            entity.Property(e => e.Avt).HasColumnName("avt");
+
+            entity.Property(e => e.Avt)
+                .HasColumnName("avt");
+
+            entity.Property(e => e.Status)
+                .HasColumnName("Status")
+                .HasDefaultValue("Active");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone")
@@ -113,8 +128,8 @@ public partial class CnpmContext : DbContext
             entity.HasIndex(e => e.ExpiresAt)
                   .HasDatabaseName("ix_refresh_tokens_expires_at");
         });
-        // ============= Hottel =============
-        modelBuilder.Entity<Hottel>(entity =>
+        // ============= Hotel =============
+        modelBuilder.Entity<Hotel>(entity =>
         {
             entity.ToTable("hottels");
 
@@ -185,7 +200,7 @@ public partial class CnpmContext : DbContext
 
             // FK Tourist Area
             entity.HasOne(d => d.Tourist_Place)
-                  .WithMany(p => p.Hottels)
+                  .WithMany(p => p.Hotels)
                   .HasForeignKey(d => d.Tourist_Place_Id)
                   .HasConstraintName("fk_hotel_tourist_place");
 
@@ -239,6 +254,9 @@ public partial class CnpmContext : DbContext
 
             entity.Property(e => e.Title)
                   .HasColumnName("title");
+
+            entity.Property(e => e.Status)
+                   .HasColumnName("Status").HasDefaultValue("Available"); ;
 
             entity.Property(e => e.Created_By_UserId)
                   .HasColumnName("created_by_user_id");
@@ -341,7 +359,7 @@ public partial class CnpmContext : DbContext
                .HasColumnName("TourType");
 
             entity.Property(e => e.Status)
-               .HasColumnName("Status");
+               .HasColumnName("Status").HasDefaultValue("Available");
 
             entity.Property(e => e.Price)
                 .HasColumnName("price");
@@ -558,6 +576,9 @@ public partial class CnpmContext : DbContext
             entity.Property(e => e.Title)
                   .HasColumnName("title");
 
+            entity.Property(e => e.Status).HasColumnName("status")
+                   .HasDefaultValue("Available");
+
             entity.Property(e => e.Created_By_UserId)
                   .HasColumnName("created_by_user_id");
 
@@ -638,28 +659,325 @@ public partial class CnpmContext : DbContext
             entity.Property(e => e.DayNumber)
                   .HasColumnName("day_number");
 
-            // ===== FK TOUR =====
             entity.HasOne(d => d.Tour)
                   .WithMany(p => p.Tour_Itinerarys)
                   .HasForeignKey(d => d.TourId)
                   .HasConstraintName("fk_itinerary_tour");
 
-            // ===== FK TOURIST PLACE =====
             entity.HasOne(d => d.Tourist_Place)
                   .WithMany(p => p.Tour_Itineraries)
                   .HasForeignKey(d => d.Tourist_Place_Id)
                   .HasConstraintName("fk_itinerary_place");
 
-            // ===== INDEX =====
             entity.HasIndex(e => e.TourId)
                   .HasDatabaseName("ix_itinerary_tour");
 
             entity.HasIndex(e => e.Tourist_Place_Id)
                   .HasDatabaseName("ix_itinerary_place");
         });
+        modelBuilder.Entity<Advertisement>(entity =>
+        {
+            entity.ToTable("advertisements");
+
+            entity.HasKey(e => e.Id)
+                  .HasName("advertisements_pkey");
+
+            entity.Property(e => e.Id)
+                 .HasColumnName("id");
+
+            entity.Property(e => e.Title)
+                 .HasColumnName("title");
+
+            entity.Property(e => e.Description)
+                  .HasColumnName("description");
+
+            entity.Property(e => e.Position)
+                 .HasColumnName("position");
+
+            entity.Property(e => e.Size)
+                 .HasColumnName("size");
+
+            entity.Property(e => e.Url)
+                  .HasColumnName("url");
+
+            entity.Property(e => e.IsActive)
+                  .HasColumnName("is_active")
+                  .HasDefaultValue(true);
+
+            entity.Property(e => e.Start_date)
+                  .HasColumnName("start_date")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.End_date)
+                  .HasColumnName("end_date")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now() + interval '31 days'");
+
+            entity.Property(e => e.Name)
+                 .HasColumnName("name");
+
+            entity.Property(e => e.Phone)
+                 .HasColumnName("phone");
+
+            entity.HasIndex(e => e.Position)
+                  .HasDatabaseName("ix_advertisements_position");
+
+            entity.HasIndex(e => new { e.IsActive, e.Start_date, e.End_date })
+                  .HasDatabaseName("ix_advertisements_active_date");
+        });
+
+        modelBuilder.Entity<Marker>(entity =>
+        {
+            entity.ToTable("markers");
+
+            entity.HasKey(e => e.Id)
+                  .HasName("markers_pkey");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Latitude).HasColumnName("latitude");
+            entity.Property(e => e.Longitude).HasColumnName("longitude");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Description).HasColumnName("description");
+
+            entity.Property(e => e.IsPublic)
+                  .HasColumnName("is_public")
+                  .HasDefaultValue(true);
+
+            entity.Property(e => e.CreatedAt)
+                  .HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.CreatedByUserId)
+                  .HasColumnName("created_by_user_id");
+
+            entity.Property(e => e.TouristPlaceId)
+                  .HasColumnName("tourist_place_id");
+
+            entity.HasOne(d => d.User)
+                  .WithMany(u => u.Markers)
+                  .HasForeignKey(d => d.CreatedByUserId)
+                  .HasConstraintName("fk_marker_user");
+
+            entity.HasIndex(e => e.CreatedByUserId)
+                  .HasDatabaseName("ix_markers_user");
+
+            entity.HasOne(d => d.Tourist_Place)
+                  .WithMany()
+                  .HasForeignKey(d => d.TouristPlaceId)
+                  .HasConstraintName("FK_Markers_TouristPlace");
+
+            entity.HasIndex(e => e.TouristPlaceId)
+                  .HasDatabaseName("ix_markers_touristPlace");
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.ToTable("reports");
+
+            entity.HasKey(e => e.Id)
+                  .HasName("reports_pkey");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type");
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.Description).HasColumnName("description");
+
+            entity.Property(e => e.Status)
+                  .HasColumnName("status")
+                  .HasDefaultValue("Pending");
+
+            entity.Property(e => e.ReportedByUserId)
+                  .HasColumnName("reported_by_user_id");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.User)
+                  .WithMany(u => u.Reports)
+                  .HasForeignKey(d => d.ReportedByUserId)
+                  .HasConstraintName("fk_report_user");
+
+            entity.HasIndex(e => new { e.EntityType, e.EntityId })
+                  .HasDatabaseName("ix_reports_entity");
+            entity.HasIndex(e => e.ReportedByUserId)
+                  .HasDatabaseName("ix_reports_user");
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications");
+
+            entity.HasKey(e => e.Id)
+                  .HasName("notifications_pkey");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Content).HasColumnName("content");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.Property(e => e.IsRead)
+                  .HasColumnName("is_read")
+                  .HasDefaultValue(false);
+
+            entity.Property(e => e.CreatedAt)
+                  .HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.User)
+                  .WithMany(u => u.Notifications)
+                  .HasForeignKey(d => d.UserId)
+                  .HasConstraintName("fk_notification_user");
+
+            entity.HasIndex(e => e.UserId)
+                  .HasDatabaseName("ix_notifications_user");
+        });
+        // ============= Hotel_Room =============
+        modelBuilder.Entity<Hotel_Room>(entity =>
+        {
+            entity.ToTable("hotel_rooms");
+            entity.HasKey(e => e.Id).HasName("hotel_rooms_pkey");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.HotelId).HasColumnName("hotel_id");
+            entity.Property(e => e.RoomName).HasColumnName("room_name").IsRequired();
+            entity.Property(e => e.Floor).HasColumnName("floor");
+            entity.Property(e => e.RoomType).HasColumnName("room_type").HasDefaultValue("Standard");
+            entity.Property(e => e.Price).HasColumnName("price");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("Available");
+
+            // FK
+            entity.HasOne(d => d.Hotel)
+                  .WithMany(p => p.Rooms)
+                  .HasForeignKey(d => d.HotelId)
+                  .OnDelete(DeleteBehavior.Cascade) // Xóa Hotel thì xóa luôn Room
+                  .HasConstraintName("fk_hotel_room");
+
+            // Index
+            entity.HasIndex(e => e.HotelId).HasDatabaseName("ix_hotel_rooms_hotel_id");
+            entity.HasIndex(e => e.Status).HasDatabaseName("ix_hotel_rooms_status");
+        });
+
+        // ============= Tour_Departure =============
+        modelBuilder.Entity<Tour_Departure>(entity =>
+        {
+            entity.ToTable("tour_departures");
+            entity.HasKey(e => e.Id).HasName("tour_departures_pkey");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TourId).HasColumnName("tour_id");
+            entity.Property(e => e.StartDate).HasColumnName("start_date").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.TotalSeats).HasColumnName("total_seats");
+            entity.Property(e => e.AvailableSeats).HasColumnName("available_seats");
+            entity.Property(e => e.BookedSeats).HasColumnName("booked_seats").HasColumnType("jsonb"); // Dùng jsonb của PostgreSQL cho lẹ
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("Open");
+
+            // FK
+            entity.HasOne(d => d.Tour)
+                  .WithMany(p => p.Departures)
+                  .HasForeignKey(d => d.TourId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("fk_tour_departure");
+
+            // Index
+            entity.HasIndex(e => e.TourId).HasDatabaseName("ix_tour_departures_tour_id");
+            entity.HasIndex(e => e.StartDate).HasDatabaseName("ix_tour_departures_start_date");
+        });
+
+        // ============= Booking =============
+        modelBuilder.Entity<Booking>(entity =>
+        {
+            entity.ToTable("bookings");
+            entity.HasKey(e => e.Id).HasName("bookings_pkey");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.BookingType).HasColumnName("booking_type").IsRequired();
+            entity.Property(e => e.ContactName).HasColumnName("contact_name").IsRequired();
+            entity.Property(e => e.ContactPhone).HasColumnName("contact_phone").IsRequired();
+            entity.Property(e => e.Note).HasColumnName("note");
+            entity.Property(e => e.TotalAmount).HasColumnName("total_amount");
+            entity.Property(e => e.PaymentStatus).HasColumnName("payment_status").HasDefaultValue("Unpaid");
+            entity.Property(e => e.BookingStatus).HasColumnName("booking_status").HasDefaultValue("Pending");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone").HasDefaultValueSql("now()");
+
+            // FK
+            entity.HasOne(d => d.User)
+                  .WithMany() // Không cần khai báo ngược lại trong User Model cho đỡ rối
+                  .HasForeignKey(d => d.UserId)
+                  .OnDelete(DeleteBehavior.Restrict) // Không cho phép xóa User nếu họ đã có Booking
+                  .HasConstraintName("fk_booking_user");
+
+            // Index
+            entity.HasIndex(e => e.UserId).HasDatabaseName("ix_bookings_user_id");
+            entity.HasIndex(e => e.BookingType).HasDatabaseName("ix_bookings_type");
+            entity.HasIndex(e => e.BookingStatus).HasDatabaseName("ix_bookings_status");
+        });
+
+        // ============= Booking_Detail =============
+        modelBuilder.Entity<Booking_Detail>(entity =>
+        {
+            entity.ToTable("booking_details");
+            entity.HasKey(e => e.Id).HasName("booking_details_pkey");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.BookingId).HasColumnName("booking_id");
+            entity.Property(e => e.HotelRoomId).HasColumnName("hotel_room_id");
+            entity.Property(e => e.TourDepartureId).HasColumnName("tour_departure_id");
+            entity.Property(e => e.SeatNumber).HasColumnName("seat_number");
+            entity.Property(e => e.IsPrivateTour).HasColumnName("is_private_tour").HasDefaultValue(false);
+            entity.Property(e => e.UnitPrice).HasColumnName("unit_price");
+
+            // FK
+            entity.HasOne(d => d.Booking)
+                  .WithMany(p => p.BookingDetails)
+                  .HasForeignKey(d => d.BookingId)
+                  .OnDelete(DeleteBehavior.Cascade) // Xóa Booking thì xóa luôn Detail
+                  .HasConstraintName("fk_booking_detail_booking");
+
+            entity.HasOne(d => d.HotelRoom)
+                  .WithMany() // Không khai báo ngược lại bên bảng Hotel_Room cho đỡ rối
+                  .HasForeignKey(d => d.HotelRoomId)
+                  .OnDelete(DeleteBehavior.SetNull) // Nếu Khách sạn xóa phòng, detail vẫn còn nhưng gán ID phòng = Null (bảo vệ hóa đơn)
+                  .HasConstraintName("fk_booking_detail_hotel_room");
+
+            entity.HasOne(d => d.TourDeparture)
+                  .WithMany()
+                  .HasForeignKey(d => d.TourDepartureId)
+                  .OnDelete(DeleteBehavior.SetNull)
+                  .HasConstraintName("fk_booking_detail_tour_departure");
+            // Index
+            entity.HasIndex(e => e.BookingId).HasDatabaseName("ix_booking_details_booking_id");
+            entity.HasIndex(e => e.HotelRoomId).HasDatabaseName("ix_booking_details_hotel_room_id");
+            entity.HasIndex(e => e.TourDepartureId).HasDatabaseName("ix_booking_details_tour_departure_id");
+        });
+        modelBuilder.Entity<Feedback>(entity =>
+        {
+            entity.ToTable("feedbacks");
+            entity.HasKey(e => e.Id).HasName("feedbacks_pkey");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Subject).HasColumnName("subject");
+            entity.Property(e => e.Message).HasColumnName("message");
+
+            entity.Property(e => e.Status)
+                  .HasColumnName("status")
+                  .HasDefaultValue("New"); // Mặc định là mới gửi
+
+            entity.Property(e => e.CreatedAt)
+                  .HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone")
+                  .HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.User)
+                  .WithMany(u => u.Feedbacks)
+                  .HasForeignKey(d => d.UserId)
+                  .HasConstraintName("fk_feedback_user"); // Ràng buộc khóa ngoại
+        });
 
         OnModelCreatingPartial(modelBuilder);
     }
-
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }

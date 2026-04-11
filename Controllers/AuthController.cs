@@ -44,21 +44,19 @@ namespace backend.Controllers
 
             if (user == null) // kiểm tra tài khoản email tồn tại không
             {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "No account"
-                });
+                throw new BadRequestException("No account");
             }
+
+            if (string.IsNullOrEmpty(user.Status) || !user.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!");
+            }
+
             bool isValidPassword = BCryptNet.Verify(req.Password, user.PasswordHash);
 
             if (!isValidPassword) // Kiểm tra password
             {
-                return Unauthorized(new
-                {
-                    success = false,
-                    message = "Wrong password"
-                });
+                throw new UnauthorizedException("Wrong password");
             }
 
             var (accessToken, refreshToken) = await _authService.IssueTokensAsync(user);
@@ -92,11 +90,7 @@ namespace backend.Controllers
 
             if (u != null)
             {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Tài khoản đã tồn tại"
-                });
+                throw new BadRequestException("Tài khoản đã tồn tại");
             }
 
             User user = new User

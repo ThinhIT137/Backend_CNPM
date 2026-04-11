@@ -118,7 +118,7 @@ namespace backend.Controllers
         public async Task<IActionResult> Hottel(int tourist_place_id)
         {
 
-            var hottels = await _context.Hottels.Where(h => h.Tourist_Place_Id == tourist_place_id).ToListAsync();
+            var hottels = await _context.Hotels.Where(h => h.Tourist_Place_Id == tourist_place_id).ToListAsync();
             var hottelIDs = hottels.Select(h => h.Id);
 
             var images = await _context.Imgs.Where(i => i.EntityType == "hottel" && hottelIDs.Contains(i.EntityId)).ToListAsync();

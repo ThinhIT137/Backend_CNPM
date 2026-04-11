@@ -16,10 +16,10 @@ namespace backend.Controllers
     {
         private readonly CnpmContext _context;
         private readonly ITouristPlaceService _touristPlaceService;
-        private readonly IHottelService _hottelService;
+        private readonly IHotelService _hottelService;
         private readonly ITourService _tourService;
 
-        public TouristPlaceController(CnpmContext context, ITouristPlaceService touristPlaceService, IHottelService hottelService, ITourService tourService)
+        public TouristPlaceController(CnpmContext context, ITouristPlaceService touristPlaceService, IHotelService hottelService, ITourService tourService)
         {
             _context = context;
             _touristPlaceService = touristPlaceService;
@@ -56,11 +56,11 @@ namespace backend.Controllers
             }
 
             // 4. MAP DATA VÀ HÌNH ẢNH (Giữ nguyên logic cũ của ông)
-            var touristAreaIds = paged_result.Items.Select(t => t.Id).ToList();
+            var touristPlaceIds = paged_result.Items.Select(t => t.Id).ToList();
 
             // Note: Chỗ này EntityType của ông đang để "tourist_area", check kỹ xem DB là tourist_area hay tourist_place nha
             var images = await _context.Imgs
-                .Where(img => img.EntityType == "tourist_area" && touristAreaIds.Contains(img.EntityId))
+                .Where(img => img.EntityType == "tourist_place" && touristPlaceIds.Contains(img.EntityId))
                 .ToListAsync();
 
             var data_result = paged_result.Items.Select(a => new
@@ -127,7 +127,9 @@ namespace backend.Controllers
                 })
                 .FirstOrDefaultAsync(tp => tp.Id == id);
 
-            if (touristPlaceDetail == null) return NotFound(new { success = false, message = "Không tìm thấy địa điểm" });
+            if (touristPlaceDetail == null) throw new NotFoundException("Không tìm thấy địa điểm");
+
+            Console.WriteLine("->>>>>>>>>: COooooooooooooooooooooooooooooooooooooooooooooooooooooo");
 
             if (type == "Hotel")
             {
@@ -221,6 +223,61 @@ namespace backend.Controllers
             }
 
             throw new BadRequestException("Type không hợp lệ");
+        }
+
+        // ==========================================
+        // LẤY DANH SÁCH ĐỊA ĐIỂM DU LỊCH CỦA TÔI
+        // GET: /api/TouristPlace/my-places
+        // ==========================================
+        [Authorize(Roles = "Admin, Owner, Hotel, Tour, User")]
+        [HttpGet("my-places")]
+        public async Task<IActionResult> GetMyTouristPlaces([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var data = await _touristPlaceService.GetMyTouristPlacesAsync(Guid.Parse(userIdStr), page, pageSize, keyword, status);
+            return Ok(new { success = true, data = data });
+        }
+
+        [Authorize(Roles = "Owner, Admin, User, Hotel, Tour")]
+        [HttpPost]
+        public async Task<IActionResult> CreateTouristPlace([FromBody] TouristPlaceRequest req)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int newId = await _touristPlaceService.CreateTouristPlaceAsync(req, userId);
+            return Ok(new
+            {
+                success = true,
+                message = "Thêm địa điểm thành công",
+                data = new { id = newId }
+            });
+        }
+
+        [Authorize(Roles = "Owner, Admin, User, Hotel, Tour")]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTouristPlace(int id, [FromBody] TouristPlaceRequest req)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            await _touristPlaceService.UpdateTouristPlaceAsync(id, req, userId);
+            return Ok(new { success = true, message = "Cập nhật địa điểm thành công" });
+        }
+
+        [Authorize(Roles = "Owner, Admin, User, Hotel, Tour")]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTouristPlace(int id)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            await _touristPlaceService.DeleteTouristPlaceAsync(id, userId);
+            return Ok(new { success = true, message = "Xóa địa điểm thành công" });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("all-dropdown")]
+        public async Task<IActionResult> GetAllForDropdown()
+        {
+            var data = await _touristPlaceService.GetAllForDropdownAsync();
+            return Ok(new { success = true, data = data });
         }
     }
 }

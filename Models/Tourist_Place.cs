@@ -14,6 +14,7 @@ namespace backend.Models
         public decimal? Longitude { get; set; }
         public string? Description { get; set; }
         public string? Title { get; set; }
+        public string? Status { get; set; } // Active, Approved, Rejected
         public Guid? Created_By_UserId { get; set; }
         public int Tourist_Area_Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -32,6 +33,8 @@ namespace backend.Models
 
         // điều hướng 1 - N
         public virtual ICollection<Tour_Itinerary> Tour_Itineraries { get; set; } = new List<Tour_Itinerary>();
-        public virtual ICollection<Hottel> Hottels { get; set; } = new List<Hottel>();
+        public virtual ICollection<Hotel> Hotels { get; set; } = new List<Hotel>();
+        public virtual ICollection<Marker> Markers { get; set; } = new List<Marker>();
+
     }
 }

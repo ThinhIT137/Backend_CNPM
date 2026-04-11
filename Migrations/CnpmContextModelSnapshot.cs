@@ -22,6 +22,194 @@ namespace backend.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("backend.Models.Advertisement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("End_date")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("end_date")
+                        .HasDefaultValueSql("now() + interval '31 days'");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("text")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("Position")
+                        .HasColumnType("text")
+                        .HasColumnName("position");
+
+                    b.Property<string>("Size")
+                        .HasColumnType("text")
+                        .HasColumnName("size");
+
+                    b.Property<DateTime?>("Start_date")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_date")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("advertisements_pkey");
+
+                    b.HasIndex("Position")
+                        .HasDatabaseName("ix_advertisements_position");
+
+                    b.HasIndex("IsActive", "Start_date", "End_date")
+                        .HasDatabaseName("ix_advertisements_active_date");
+
+                    b.ToTable("advertisements", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Booking", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BookingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Pending")
+                        .HasColumnName("booking_status");
+
+                    b.Property<string>("BookingType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("booking_type");
+
+                    b.Property<string>("ContactName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("contact_name");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Unpaid")
+                        .HasColumnName("payment_status");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total_amount");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("bookings_pkey");
+
+                    b.HasIndex("BookingStatus")
+                        .HasDatabaseName("ix_bookings_status");
+
+                    b.HasIndex("BookingType")
+                        .HasDatabaseName("ix_bookings_type");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_bookings_user_id");
+
+                    b.ToTable("bookings", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Booking_Detail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("integer")
+                        .HasColumnName("booking_id");
+
+                    b.Property<int?>("HotelRoomId")
+                        .HasColumnType("integer")
+                        .HasColumnName("hotel_room_id");
+
+                    b.Property<bool>("IsPrivateTour")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_private_tour");
+
+                    b.Property<string>("SeatNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("seat_number");
+
+                    b.Property<int?>("TourDepartureId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tour_departure_id");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("booking_details_pkey");
+
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("ix_booking_details_booking_id");
+
+                    b.HasIndex("HotelRoomId")
+                        .HasDatabaseName("ix_booking_details_hotel_room_id");
+
+                    b.HasIndex("TourDepartureId")
+                        .HasDatabaseName("ix_booking_details_tour_departure_id");
+
+                    b.ToTable("booking_details", (string)null);
+                });
+
             modelBuilder.Entity("backend.Models.Favorite", b =>
                 {
                     b.Property<int>("Id")
@@ -31,22 +219,21 @@ namespace backend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<int>("EntityId")
+                    b.Property<int?>("EntityId")
                         .HasColumnType("integer")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("entity_type");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -65,7 +252,51 @@ namespace backend.Migrations
                     b.ToTable("favorites", (string)null);
                 });
 
-            modelBuilder.Entity("backend.Models.Hottel", b =>
+            modelBuilder.Entity("backend.Models.Feedback", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("New")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("subject");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("feedbacks_pkey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("feedbacks", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Hotel", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -181,6 +412,58 @@ namespace backend.Migrations
                     b.ToTable("hottels", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Models.Hotel_Room", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Floor")
+                        .HasColumnType("integer")
+                        .HasColumnName("floor");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric")
+                        .HasColumnName("price");
+
+                    b.Property<string>("RoomName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("room_name");
+
+                    b.Property<string>("RoomType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Standard")
+                        .HasColumnName("room_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Available")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("hotel_rooms_pkey");
+
+                    b.HasIndex("HotelId")
+                        .HasDatabaseName("ix_hotel_rooms_hotel_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_hotel_rooms_status");
+
+                    b.ToTable("hotel_rooms", (string)null);
+                });
+
             modelBuilder.Entity("backend.Models.Img", b =>
                 {
                     b.Property<int>("Id")
@@ -223,6 +506,110 @@ namespace backend.Migrations
                         .HasDatabaseName("ix_imgs_entity");
 
                     b.ToTable("imgs", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Marker", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool?>("IsPublic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_public");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("numeric")
+                        .HasColumnName("latitude");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("numeric")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<int?>("TouristPlaceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tourist_place_id");
+
+                    b.Property<int?>("Tourist_PlaceId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id")
+                        .HasName("markers_pkey");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("ix_markers_user");
+
+                    b.HasIndex("TouristPlaceId")
+                        .HasDatabaseName("ix_markers_touristPlace");
+
+                    b.HasIndex("Tourist_PlaceId");
+
+                    b.ToTable("markers", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<bool?>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("notifications_pkey");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_notifications_user");
+
+                    b.ToTable("notifications", (string)null);
                 });
 
             modelBuilder.Entity("backend.Models.RefreshToken", b =>
@@ -272,6 +659,59 @@ namespace backend.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Models.Report", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("EntityId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .HasColumnType("text")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ReportedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reported_by_user_id");
+
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Pending")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("reports_pkey");
+
+                    b.HasIndex("ReportedByUserId")
+                        .HasDatabaseName("ix_reports_user");
+
+                    b.HasIndex("EntityType", "EntityId")
+                        .HasDatabaseName("ix_reports_entity");
+
+                    b.ToTable("reports", (string)null);
+                });
+
             modelBuilder.Entity("backend.Models.Review", b =>
                 {
                     b.Property<int>("Id")
@@ -282,7 +722,6 @@ namespace backend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comment")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("comment");
 
@@ -292,12 +731,11 @@ namespace backend.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<int>("EntityId")
+                    b.Property<int?>("EntityId")
                         .HasColumnType("integer")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("entity_type");
 
@@ -406,7 +844,9 @@ namespace backend.Migrations
                         .HasColumnName("rating_total");
 
                     b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
+                        .HasDefaultValue("Available")
                         .HasColumnName("Status");
 
                     b.Property<string>("Title")
@@ -450,6 +890,54 @@ namespace backend.Migrations
                         .HasDatabaseName("ix_tours_popular");
 
                     b.ToTable("tours", (string)null);
+                });
+
+            modelBuilder.Entity("backend.Models.Tour_Departure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AvailableSeats")
+                        .HasColumnType("integer")
+                        .HasColumnName("available_seats");
+
+                    b.Property<string>("BookedSeats")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("booked_seats");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Open")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TotalSeats")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_seats");
+
+                    b.Property<int>("TourId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tour_id");
+
+                    b.HasKey("Id")
+                        .HasName("tour_departures_pkey");
+
+                    b.HasIndex("StartDate")
+                        .HasDatabaseName("ix_tour_departures_start_date");
+
+                    b.HasIndex("TourId")
+                        .HasDatabaseName("ix_tour_departures_tour_id");
+
+                    b.ToTable("tour_departures", (string)null);
                 });
 
             modelBuilder.Entity("backend.Models.Tour_Itinerary", b =>
@@ -562,6 +1050,12 @@ namespace backend.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("rating_total");
 
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Available")
+                        .HasColumnName("Status");
+
                     b.Property<string>("Title")
                         .HasColumnType("text")
                         .HasColumnName("title");
@@ -659,6 +1153,12 @@ namespace backend.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("rating_total");
 
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Available")
+                        .HasColumnName("status");
+
                     b.Property<string>("Title")
                         .HasColumnType("text")
                         .HasColumnName("title");
@@ -734,6 +1234,13 @@ namespace backend.Migrations
                         .HasColumnType("text")
                         .HasColumnName("role");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Active")
+                        .HasColumnName("Status");
+
                     b.Property<string>("User_Search_History")
                         .HasColumnType("text")
                         .HasColumnName("User_Search_History");
@@ -750,19 +1257,67 @@ namespace backend.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Models.Booking", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_user");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Booking_Detail", b =>
+                {
+                    b.HasOne("backend.Models.Booking", "Booking")
+                        .WithMany("BookingDetails")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_detail_booking");
+
+                    b.HasOne("backend.Models.Hotel_Room", "HotelRoom")
+                        .WithMany()
+                        .HasForeignKey("HotelRoomId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_booking_detail_hotel_room");
+
+                    b.HasOne("backend.Models.Tour_Departure", "TourDeparture")
+                        .WithMany()
+                        .HasForeignKey("TourDepartureId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_booking_detail_tour_departure");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("HotelRoom");
+
+                    b.Navigation("TourDeparture");
+                });
+
             modelBuilder.Entity("backend.Models.Favorite", b =>
                 {
                     b.HasOne("backend.Models.User", "user")
                         .WithMany("Favorites")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_favorite_user");
 
                     b.Navigation("user");
                 });
 
-            modelBuilder.Entity("backend.Models.Hottel", b =>
+            modelBuilder.Entity("backend.Models.Feedback", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany("Feedbacks")
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("fk_feedback_user");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Hotel", b =>
                 {
                     b.HasOne("backend.Models.User", "User")
                         .WithMany("Hottels")
@@ -770,13 +1325,58 @@ namespace backend.Migrations
                         .HasConstraintName("fk_hotel_user");
 
                     b.HasOne("backend.Models.Tourist_Place", "Tourist_Place")
-                        .WithMany("Hottels")
+                        .WithMany("Hotels")
                         .HasForeignKey("Tourist_Place_Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hotel_tourist_place");
 
                     b.Navigation("Tourist_Place");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Hotel_Room", b =>
+                {
+                    b.HasOne("backend.Models.Hotel", "Hotel")
+                        .WithMany("Rooms")
+                        .HasForeignKey("HotelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hotel_room");
+
+                    b.Navigation("Hotel");
+                });
+
+            modelBuilder.Entity("backend.Models.Marker", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany("Markers")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_marker_user");
+
+                    b.HasOne("backend.Models.Tourist_Place", "Tourist_Place")
+                        .WithMany()
+                        .HasForeignKey("TouristPlaceId")
+                        .HasConstraintName("FK_Markers_TouristPlace");
+
+                    b.HasOne("backend.Models.Tourist_Place", null)
+                        .WithMany("Markers")
+                        .HasForeignKey("Tourist_PlaceId");
+
+                    b.Navigation("Tourist_Place");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Notification", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("fk_notification_user");
 
                     b.Navigation("User");
                 });
@@ -789,6 +1389,16 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_users");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Report", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany("Reports")
+                        .HasForeignKey("ReportedByUserId")
+                        .HasConstraintName("fk_report_user");
 
                     b.Navigation("User");
                 });
@@ -822,6 +1432,18 @@ namespace backend.Migrations
                     b.Navigation("Tourist_Area");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.Tour_Departure", b =>
+                {
+                    b.HasOne("backend.Models.Tour", "Tour")
+                        .WithMany("Departures")
+                        .HasForeignKey("TourId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tour_departure");
+
+                    b.Navigation("Tour");
                 });
 
             modelBuilder.Entity("backend.Models.Tour_Itinerary", b =>
@@ -874,8 +1496,20 @@ namespace backend.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("backend.Models.Booking", b =>
+                {
+                    b.Navigation("BookingDetails");
+                });
+
+            modelBuilder.Entity("backend.Models.Hotel", b =>
+                {
+                    b.Navigation("Rooms");
+                });
+
             modelBuilder.Entity("backend.Models.Tour", b =>
                 {
+                    b.Navigation("Departures");
+
                     b.Navigation("Tour_Itinerarys");
                 });
 
@@ -888,7 +1522,9 @@ namespace backend.Migrations
 
             modelBuilder.Entity("backend.Models.Tourist_Place", b =>
                 {
-                    b.Navigation("Hottels");
+                    b.Navigation("Hotels");
+
+                    b.Navigation("Markers");
 
                     b.Navigation("Tour_Itineraries");
                 });
@@ -897,9 +1533,17 @@ namespace backend.Migrations
                 {
                     b.Navigation("Favorites");
 
+                    b.Navigation("Feedbacks");
+
                     b.Navigation("Hottels");
 
+                    b.Navigation("Markers");
+
+                    b.Navigation("Notifications");
+
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("Reports");
 
                     b.Navigation("Reviews");
 

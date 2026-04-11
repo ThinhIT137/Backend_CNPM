@@ -8,9 +8,11 @@ namespace backend.Middlewares
     public class ExceptionMiddleware
     {
         private readonly RequestDelegate _next;
-        public ExceptionMiddleware(RequestDelegate next)
+        private readonly ILogger<ExceptionMiddleware> _logger;
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
         public async Task InvokeAsync(HttpContext context)
         {
@@ -20,6 +22,7 @@ namespace backend.Middlewares
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Có lỗi văng ra kìa Dev ơi: {ex.Message}");
                 await HandleExceptionAsync(context, ex);
             }
         }

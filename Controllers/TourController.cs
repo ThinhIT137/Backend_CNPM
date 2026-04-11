@@ -1,4 +1,5 @@
-﻿using backend.DTO;
+﻿using backend.Data;
+using backend.DTO;
 using backend.Exceptions;
 using backend.Models;
 using backend.Services;
@@ -152,7 +153,6 @@ namespace backend.Controllers
                 {
                     id = ti.Id,
                     dayNumber = ti.DayNumber,
-                    // Sửa lại map theo Model Tour_Itinerary hiện tại đang dùng Title
                     activityName = ti.Title,
                     description = ti.Description,
                     tourist_Place = ti.Tourist_Place != null ? new
@@ -163,6 +163,20 @@ namespace backend.Controllers
                         longitude = ti.Tourist_Place.Longitude
                     } : null
                 }),
+
+                // 🔴 CHỖ NÀY QUAN TRỌNG: Ánh xạ chuẩn cho Form Đặt Tour
+                schedules = tour.Departures?.Select(d => new
+                {
+                    id = d.Id,
+                    startDate = d.StartDate,
+                    totalSeats = d.TotalSeats,
+                    availableSeats = d.AvailableSeats,
+                    status = d.Status,
+                    // Parse chuỗi JSON từ Database thành mảng string (VD: ["1A", "2B"]) cho Frontend dễ dùng
+                    bookedSeats = string.IsNullOrEmpty(d.BookedSeats)
+                        ? new List<string>()
+                        : JsonConvert.DeserializeObject<List<string>>(d.BookedSeats)
+                }).ToList(),
 
                 rating_average = tour.RatingAverage,
                 click_count = tour.ClickCount,
@@ -211,6 +225,141 @@ namespace backend.Controllers
             historyList.Remove(newId);
             historyList.Insert(0, newId);
             if (historyList.Count > maxItems) historyList.RemoveAt(historyList.Count - 1);
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out Guid userId))
+                throw new UnauthorizedException("Vui lòng đăng nhập");
+            return userId;
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPost]
+        public async Task<IActionResult> CreateTour([FromBody] TourRequest req)
+        {
+            int newTourId = await _tourService.CreateTourAsync(req, GetCurrentUserId());
+            return Ok(new { success = true, message = "Thêm Tour thành công (Chờ duyệt)", data = new { id = newTourId } });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateTour(int id, [FromBody] TourRequest req)
+        {
+            await _tourService.UpdateTourAsync(id, req, GetCurrentUserId());
+            return Ok(new { success = true, message = "Cập nhật Tour thành công" });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteTour(int id)
+        {
+            await _tourService.DeleteTourAsync(id, GetCurrentUserId());
+            return Ok(new { success = true, message = "Xóa Tour thành công" });
+        }
+
+        // --- API CHO ITINERARY ---
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPost("{tourId:int}/itinerary")] // Route đẹp: /api/Tour/5/itinerary
+        public async Task<IActionResult> AddItinerary(int tourId, [FromBody] TourItineraryRequest req)
+        {
+            await _tourService.AddItineraryAsync(tourId, req, GetCurrentUserId());
+            return Ok(new { success = true, message = "Thêm lịch trình thành công" });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPut("itinerary/{id:int}")]
+        public async Task<IActionResult> UpdateItinerary(int id, [FromBody] TourItineraryRequest req)
+        {
+            await _tourService.UpdateItineraryAsync(id, req, GetCurrentUserId());
+            return Ok(new { success = true, message = "Cập nhật lịch trình thành công" });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpDelete("itinerary/{id}")]
+        public async Task<IActionResult> DeleteItinerary(int id)
+        {
+            await _tourService.DeleteItineraryAsync(id, GetCurrentUserId());
+            return Ok(new { success = true, message = "Xóa lịch trình thành công" });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("approve/{id:int}")]
+        public async Task<IActionResult> ApproveTour(int id, [FromBody] ApprovalRequest req)
+        {
+            if (req == null || string.IsNullOrEmpty(req.Status))
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ" });
+
+            await _tourService.ApproveTourAsync(id, req.Status);
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Đã chuyển trạng thái Tour thành: {req.Status}"
+            });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPost("{tourId}/departures")]
+        public async Task<IActionResult> AddDeparture(int tourId, [FromBody] DepartureRequest req)
+        {
+            var tour = await _context.Tours.FindAsync(tourId);
+            if (tour == null) return NotFound("Tour không tồn tại");
+            if (tour.Created_By_UserId != GetCurrentUserId()) return StatusCode(403, "Đây không phải Tour của bạn");
+
+            var departure = new Tour_Departure
+            {
+                TourId = tourId,
+                StartDate = req.StartDate,
+                TotalSeats = req.TotalSeats,
+                AvailableSeats = req.TotalSeats,
+                Status = "Open"
+            };
+            _context.TourDepartures.Add(departure);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Mở bán chuyến đi thành công" });
+        }
+
+        // ==========================================
+        // LẤY DANH SÁCH TOUR CỦA TÔI
+        // GET: /api/Tour/my-tours
+        // ==========================================
+        [Authorize(Roles = "Owner, Tour, Admin, Tour")]
+        [HttpGet("my-tours")]
+        public async Task<IActionResult> GetMyTours([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var data = await _tourService.GetMyToursAsync(Guid.Parse(userIdStr), page, pageSize, keyword, status);
+            return Ok(new { success = true, data = data });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpPut("departures/{id:int}")]
+        public async Task<IActionResult> UpdateDeparture(int id, [FromBody] DepartureRequest req)
+        {
+            var dep = await _context.TourDepartures.FindAsync(id);
+            if (dep == null) return NotFound("Không tìm thấy chuyến đi");
+
+            dep.StartDate = req.StartDate;
+            dep.TotalSeats = req.TotalSeats;
+            // AvailableSeats có thể tự tính lại dựa trên TotalSeats - số vé đã đặt (tùy logic sếp)
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Cập nhật chuyến đi thành công" });
+        }
+
+        [Authorize(Roles = "Owner, Admin, Tour")]
+        [HttpDelete("departures/{id:int}")]
+        public async Task<IActionResult> DeleteDeparture(int id)
+        {
+            var dep = await _context.TourDepartures.FindAsync(id);
+            if (dep == null) return NotFound("Không tìm thấy chuyến đi");
+
+            _context.TourDepartures.Remove(dep);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Xóa chuyến đi thành công" });
         }
     }
 }

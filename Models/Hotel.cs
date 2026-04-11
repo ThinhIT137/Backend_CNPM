@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
-    public class Hottel
+    public class Hotel
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -14,7 +14,7 @@ namespace backend.Models
         public decimal? Longitude { get; set; }
         public string? Description { get; set; }
         public string? Title { get; set; }
-        public string? Status { get; set; }
+        public string? Status { get; set; } // Active, Approved, Rejected
         public int? NumberOfPeople { get; set; }
         public Guid? Created_By_UserId { get; set; }
         public int Tourist_Place_Id { get; set; }
@@ -31,5 +31,7 @@ namespace backend.Models
         public virtual User? User { get; set; }
         [ForeignKey("Tourist_Place_Id")]
         public virtual Tourist_Place? Tourist_Place { get; set; }
+        // Điều hướng 1-N
+        public virtual ICollection<Hotel_Room> Rooms { get; set; } = new List<Hotel_Room>();
     }
 }

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Xml.Linq;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -118,7 +119,7 @@ namespace backend.Controllers
         public async Task<IActionResult> DetailTouristArea([FromBody] TourismProductDetailRequest req)
         {
 
-            if (req == null) return BadRequest("Không nhận được dữ liệu");
+            if (req == null) throw new BadRequestException("Không nhận được dữ liệu");
 
             if (req.TourismProduct == null)
             {
@@ -258,15 +259,14 @@ namespace backend.Controllers
         {
             var user = await getUser();
 
-            if (req == null) return BadRequest("Không nhận được dữ liệu");
+            //if (req == null) return BadRequest("Không nhận được dữ liệu");
 
-            if (req.TourismProduct == null)
-            {
-                Console.WriteLine("Ở đây NULLLLLLLLLLLLLLLLLLLLLLLLLLL");
-                throw new BadRequestException("Đối tượng TourismProduct bị null. Hãy check lại chữ hoa/chữ thường trong JSON!");
-            }
+            //if (req.TourismProduct == null)
+            //{
+            //    throw new BadRequestException("Đối tượng TourismProduct bị null. Hãy check lại chữ hoa/chữ thường trong JSON!");
+            //}
 
-            _touristAreaService.update_click_tourist_area(req.id, user);
+            await _touristAreaService.update_click_tourist_area(req.id, user);
 
             var data = await _touristAreaService.GetDetailTouristAreasAsync(req.id, req.type, user, req.TourismProduct.page, req.TourismProduct.pageSize);
             var touristArea = data.tourist_Area_Detail;
@@ -385,6 +385,84 @@ namespace backend.Controllers
             });
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpPost]
+        public async Task<IActionResult> CreateTouristArea([FromBody] TouristAreaRequest request)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid ownerId = string.IsNullOrEmpty(userIdStr) ? Guid.Empty : Guid.Parse(userIdStr);
+
+            var newEntity = new Tourist_Area
+            {
+                Name = request.Name,
+                Address = request.Address,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                Description = request.Description,
+                Title = request.Title,
+
+                CreatedAt = DateTime.Now,
+                ClickCount = 0,
+                RatingAverage = 0,
+                Created_By_UserId = ownerId,
+
+                // GẮN CỨNG STATUS LÀ ACTIVE ĐỂ NÓ HIỆN LÊN ĐƯỢC BẢNG QUẢN LÝ NÈ SẾP
+                Status = "Pending"
+            };
+
+            int newId = await _touristAreaService.addTouristArea(newEntity);
+            return Ok(new { success = true, message = "Thêm khu du lịch thành công", data = new { id = newId } });
+        }
+
+        // ==========================================
+        // 2. CẬP NHẬT KHU DU LỊCH
+        // PUT: /api/TouristArea/{id}
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateTouristArea(int id, [FromBody] TouristAreaRequest request)
+        {
+            if (request == null || id <= 0)
+                return BadRequest(new { success = false, message = "Dữ liệu hoặc ID không hợp lệ" });
+
+            // Vẫn gọi Service bình thường
+            await _touristAreaService.UpdateTouristArea(id, request);
+
+            return Ok(new { success = true, message = "Cập nhật khu du lịch thành công" });
+
+        }
+
+        // ==========================================
+        // 3. XÓA KHU DU LỊCH
+        // DELETE: /api/TouristArea/{id}
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id:int}")] // Tương tự PUT, chỉ cần {id}
+        public async Task<IActionResult> DeleteTouristArea(int id)
+        {
+            if (id <= 0)
+                return BadRequest(new { success = false, message = "ID không hợp lệ" });
+
+            await _touristAreaService.RemoveTouristArea(id);
+
+            return Ok(new { success = true, message = "Xóa khu du lịch thành công" });
+        }
+
+        // ==========================================
+        // 4. LẤY DANH SÁCH KHU DU LỊCH CỦA TÔI
+        // GET: /api/TouristArea/my-areas
+        // ==========================================
+        [Authorize(Roles = "Admin, Owner, Hotel, Tour, User")]
+        [HttpGet("my-areas")]
+        public async Task<IActionResult> GetMyTouristAreas([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var data = await _touristAreaService.GetMyTouristAreasAsync(Guid.Parse(userIdStr), page, pageSize, keyword, status);
+            return Ok(new { success = true, data = data });
+        }
+
         private async Task<User> getUser()
         {
             // lấy accessToken từ Authorization
@@ -399,6 +477,14 @@ namespace backend.Controllers
             if (user == null) throw new SecurityTokenException("User không tồn tại");
 
             return user;
+        }
+
+        [AllowAnonymous]
+        [HttpGet("all-dropdown")]
+        public async Task<IActionResult> GetAllForDropdown()
+        {
+            var data = await _touristAreaService.GetAllForDropdownAsync();
+            return Ok(new { success = true, data = data });
         }
     }
 }

@@ -90,7 +90,7 @@ namespace backend.Services
 
         public async Task<bool> ValidateRefreshTokenAsync(CnpmContext _context, Guid userId, string refreshToken)
         {
-            var refresh = await _context.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == HashRefreshToken(refreshToken));
+            var refresh = await _context.RefreshTokens.AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(r => r.TokenHash == HashRefreshToken(refreshToken));
             if (refresh == null)
             {
                 return false;

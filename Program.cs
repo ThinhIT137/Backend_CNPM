@@ -9,6 +9,8 @@ using System.Threading.RateLimiting;
 using backend.Services;
 using System.Text.Json.Serialization;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -93,10 +95,14 @@ builder.Services
 builder.Services.AddScoped<ITouristPlaceService, TouristPlaceService>();
 builder.Services.AddScoped<ITouristAreaService, TouristAreaService>();
 builder.Services.AddScoped<ITourService, TourService>();
-builder.Services.AddScoped<IHottelService, HottelService>();
+builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IInteractionService, InteractionService>();
 // ------------------------------------------------------------------------------
 
 var app = builder.Build();
@@ -111,6 +117,8 @@ app.UseCors("AllowNextJs");
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
@@ -119,5 +127,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers().RequireRateLimiting("api");
-app.Run($"http://0.0.0.0:{port}");
-//app.Run();
+//app.Run($"http://0.0.0.0:{port}");
+app.Run();

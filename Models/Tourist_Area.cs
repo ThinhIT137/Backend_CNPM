@@ -14,6 +14,7 @@ namespace backend.Models
         public decimal? Longitude { get; set; }
         public string? Description { get; set; }
         public string? Title { get; set; }
+        public string? Status { get; set; } // Active, Approved, Rejected
         public Guid? Created_By_UserId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public int RatingTotal { get; set; } = 0;

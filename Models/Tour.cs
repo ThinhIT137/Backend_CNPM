@@ -22,7 +22,7 @@ namespace backend.Models
         public decimal? DepartureLongitude { get; set; }
         public string? Vehicle { get; set; }           // Phương tiện (VD: "Ô tô, Máy bay", "Tàu hỏa")
         public string? TourType { get; set; }          // Loại tour (VD: "Ghép đoàn", "Riêng tư")
-        public string? Status { get; set; }
+        public string? Status { get; set; } // Active, Approved, Rejected
         public Guid? Created_By_UserId { get; set; }
         public int Tourist_Area_Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -31,7 +31,7 @@ namespace backend.Models
         public decimal RatingAverage { get; set; } = 0;
         public int FavoriteCount { get; set; } = 0;
         public int ClickCount { get; set; } = 0;
-        public decimal? Price { get; set; }
+        public decimal? Price { get; set; } // 1 ghế
 
 
         // FK
@@ -42,6 +42,8 @@ namespace backend.Models
 
         // điều hướng 1-N
         public virtual ICollection<Tour_Itinerary> Tour_Itinerarys { get; set; } = new List<Tour_Itinerary>();
+        // Điều hướng 1-N (Ngay dưới cái Tour_Itinerarys ấy)
+        public virtual ICollection<Tour_Departure> Departures { get; set; } = new List<Tour_Departure>();
 
     }
 }

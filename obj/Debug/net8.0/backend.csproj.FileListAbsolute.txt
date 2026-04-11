@@ -125,5 +125,5 @@ E:\FullStack_developer\projects\CNPM\backend\bin\Debug\net8.0\MailKit.dll
 E:\FullStack_developer\projects\CNPM\backend\bin\Debug\net8.0\MimeKit.dll
 E:\FullStack_developer\projects\CNPM\backend\bin\Debug\net8.0\System.Security.Cryptography.Pkcs.dll
 E:\FullStack_developer\projects\CNPM\backend\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
-E:\FullStack_developer\projects\CNPM\backend\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
 E:\FullStack_developer\projects\CNPM\backend\bin\Debug\net8.0\Newtonsoft.Json.dll
+E:\FullStack_developer\projects\CNPM\backend\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

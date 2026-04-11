@@ -44,7 +44,7 @@ namespace backend.Services
                 throw new BadRequestException("Mã xác nhận đã hết hạn!");
             }
 
-            var rfUser = await _context.RefreshTokens.Where(rf => rf.UserId == user.Id && rf.IsRevoked == false).ToListAsync();
+            var rfUser = await _context.RefreshTokens.Where(rf => rf.UserId == user.Id && rf.IsRevoked == false).AsNoTracking().AsSplitQuery().ToListAsync();
             foreach (var rf in rfUser)
             {
                 rf.IsRevoked = true;

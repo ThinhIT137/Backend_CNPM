@@ -1,4 +1,5 @@
-﻿using backend.DTO;
+﻿using backend.Data;
+using backend.DTO;
 using backend.Exceptions;
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ namespace backend.Services
         public async Task<PagedResult<Tourist_Area>> GetTrendingTouristAreasAsync(User u, int page = 1, int pageSize = 10)
         {
             var history = GetHistoryUser(u);
-            var query = _context.TouristAreas;
+            var query = _context.TouristAreas.AsNoTracking().AsSplitQuery();
             var TotalCount = await query.CountAsync();
             var data = await query
                             .OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m) + (history.TouristArea.Contains(t.Id) ? 50 : 0)))
@@ -42,7 +43,7 @@ namespace backend.Services
         }
         public async Task<PagedResult<Tourist_Area>> GetTrendingTouristAreasAsync(int page = 1, int pageSize = 10)
         {
-            var query = _context.TouristAreas;
+            var query = _context.TouristAreas.AsNoTracking().AsSplitQuery();
             var TotalCount = await query.CountAsync();
             var data = await query
                             .OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
@@ -72,7 +73,7 @@ namespace backend.Services
                     throw new BadRequestException("Địa điểm du lịch tại khu du lịch đang trống");
                 }
 
-                var dataTourist = await _context.TouristAreas.Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
+                var dataTourist = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
                             .Skip((page - 1) * pageSize)
                             .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
                 if (dataTourist == null)
@@ -93,7 +94,7 @@ namespace backend.Services
                 throw new BadRequestException("Chuyến du lịch tại khu du lịch đang trống");
             }
 
-            var dataTourist_Tour = await _context.TouristAreas.Include(ti => ti.Tours.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
+            var dataTourist_Tour = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Include(ti => ti.Tours.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m)))
                         .Skip((page - 1) * pageSize)
                         .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
             if (dataTourist_Tour == null)
@@ -121,7 +122,7 @@ namespace backend.Services
                     throw new BadRequestException("Địa điểm du lịch tại khu du lịch đang trống");
                 }
 
-                var dataTourist = await _context.TouristAreas.Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m) + (history.TouristPlace.Contains(t.Id) ? 50 : 0)))
+                var dataTourist = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Include(ti => ti.Tourist_Places.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m) + (history.TouristPlace.Contains(t.Id) ? 50 : 0)))
                             .Skip((page - 1) * pageSize)
                             .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
                 if (dataTourist == null)
@@ -142,7 +143,7 @@ namespace backend.Services
                 throw new BadRequestException("Chuyến du lịch tại khu du lịch đang trống");
             }
 
-            var dataTourist_Tour = await _context.TouristAreas.Include(ti => ti.Tours.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m) + (history.Tour.Contains(t.Id) ? 50 : 0)))
+            var dataTourist_Tour = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Include(ti => ti.Tours.OrderByDescending(t => ((t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m) + (history.Tour.Contains(t.Id) ? 50 : 0)))
                         .Skip((page - 1) * pageSize)
                         .Take(pageSize)).FirstOrDefaultAsync(t => t.Id == id);
             if (dataTourist_Tour == null)
@@ -162,7 +163,7 @@ namespace backend.Services
 
             UpdateHistoryQueue(history.TouristArea, Tourist_Area_Id);
             user.User_Search_History = JsonConvert.SerializeObject(history);
-            var tourist_area = await _context.TouristAreas.FirstOrDefaultAsync(ta => ta.Id == Tourist_Area_Id);
+            var tourist_area = await _context.TouristAreas.AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(ta => ta.Id == Tourist_Area_Id);
             if (tourist_area != null)
             {
                 tourist_area.ClickCount += 1;
@@ -171,9 +172,9 @@ namespace backend.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task addTouristArea(Tourist_Area tourist)
+        public async Task<int> addTouristArea(Tourist_Area tourist)
         {
-            var TouristArea = await _context.TouristAreas.Where(t => t.Name == tourist.Name).FirstOrDefaultAsync();
+            var TouristArea = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Where(t => t.Name == tourist.Name).FirstOrDefaultAsync();
 
             if (TouristArea != null)
             {
@@ -182,11 +183,12 @@ namespace backend.Services
 
             _context.TouristAreas.Add(tourist);
             await _context.SaveChangesAsync();
+            return tourist.Id;
         }
 
         public async Task RemoveTouristArea(int id)
         {
-            var TouristArea = await _context.TouristAreas.Where(t => t.Id == id).FirstOrDefaultAsync();
+            var TouristArea = await _context.TouristAreas.AsNoTracking().AsSplitQuery().Where(t => t.Id == id).FirstOrDefaultAsync();
 
             if (TouristArea == null)
             {
@@ -194,26 +196,6 @@ namespace backend.Services
             }
 
             _context.TouristAreas.Remove(TouristArea);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task UpdateTouristArea(int id, Tourist_Area tourist)
-        {
-            // 2. Dùng FindAsync tìm theo ID cho chuẩn và nhanh
-            var existingArea = await _context.TouristAreas.FindAsync(id);
-
-            if (existingArea == null)
-            {
-                throw new BadRequestException("Khu du lịch này k có");
-            }
-
-            existingArea.Name = tourist.Name;
-            existingArea.Title = tourist.Title;
-            existingArea.Address = tourist.Address;
-            existingArea.Description = tourist.Description;
-            existingArea.Latitude = tourist.Latitude;
-            existingArea.Longitude = tourist.Longitude;
-
             await _context.SaveChangesAsync();
         }
 
@@ -238,6 +220,111 @@ namespace backend.Services
             {
                 historyList.RemoveAt(historyList.Count - 1);
             }
+        }
+
+        public async Task UpdateTouristArea(int id, TouristAreaRequest tourist)
+        {
+            var existingArea = await _context.TouristAreas.FindAsync(id);
+
+            if (existingArea == null)
+            {
+                throw new BadRequestException("Khu du lịch này k có");
+            }
+
+            existingArea.Name = tourist.Name;
+            existingArea.Title = tourist.Title;
+            existingArea.Address = tourist.Address;
+            existingArea.Description = tourist.Description;
+            existingArea.Latitude = tourist.Latitude;
+            existingArea.Longitude = tourist.Longitude;
+
+
+            await _context.SaveChangesAsync();
+        }
+
+        // Đè cái hàm này vào TouristAreaService.cs
+        public async Task<object> GetMyTouristAreasAsync(Guid userId, int page = 1, int pageSize = 10, string? keyword = null, string? status = null)
+        {
+            var query = _context.TouristAreas.Where(t => t.Created_By_UserId == userId).AsNoTracking().AsSplitQuery();
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(t => t.Status == status);
+            }
+
+            var allAreas = await query.ToListAsync();
+
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                string unSignKeyword = StringHelper.ConvertToUnSign(keyword).ToLower().Trim();
+
+                var scoredAreas = allAreas.Select(a =>
+                {
+                    string unSignName = StringHelper.ConvertToUnSign(a.Name ?? "").ToLower();
+                    string unSignTitle = StringHelper.ConvertToUnSign(a.Title ?? "").ToLower();
+                    string unSignAddress = StringHelper.ConvertToUnSign(a.Address ?? "").ToLower();
+
+                    double maxSimilarity = new[] {
+                StringHelper.CalculateSimilarity(unSignKeyword, unSignName) * 3.0,
+                StringHelper.CalculateSimilarity(unSignKeyword, unSignTitle) * 2.0,
+                StringHelper.CalculateSimilarity(unSignKeyword, unSignAddress) * 1.5
+            }.Max();
+
+                    if (unSignName.Contains(unSignKeyword) || unSignAddress.Contains(unSignKeyword)) maxSimilarity += 5.0;
+
+                    return new { Item = a, Score = maxSimilarity };
+                })
+                .Where(x => x.Score >= 0.8)
+                .OrderByDescending(x => x.Score)
+                .ThenByDescending(x => x.Item.CreatedAt)
+                .ToList();
+
+                allAreas = scoredAreas.Select(x => x.Item).ToList();
+            }
+            else
+            {
+                allAreas = allAreas.OrderByDescending(a => a.CreatedAt).ToList();
+            }
+
+            var totalCount = allAreas.Count;
+            var pagedAreas = allAreas.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            var areaIds = pagedAreas.Select(t => t.Id).ToList();
+            var images = await _context.Imgs
+                .Where(img => img.EntityType == "tourist_area" && areaIds.Contains(img.EntityId))
+                .ToListAsync();
+
+            var dataResult = pagedAreas.Select(a => new
+            {
+                id = a.Id,
+                name = a.Name,
+                title = a.Title,
+                address = a.Address,
+                description = a.Description,
+                latitude = a.Latitude,
+                longitude = a.Longitude,
+                status = a.Status,
+                images = images.Where(img => img.EntityId == a.Id).ToList(),
+                coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+            });
+
+            return new { items = dataResult, totalCount = totalCount, totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize), currentPage = page };
+        }
+
+        // Lấy Full Khu Du Lịch cho Dropdown (Chỉ lấy các trường cần thiết cho nhẹ)
+        public async Task<object> GetAllForDropdownAsync()
+        {
+            var data = await _context.TouristAreas.AsNoTracking()
+                .Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    latitude = a.Latitude,
+                    longitude = a.Longitude
+                })
+                .ToListAsync();
+            return data;
         }
     }
 }
