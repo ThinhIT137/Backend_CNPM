@@ -1,5 +1,6 @@
 ﻿using backend.DTO;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ namespace backend.Controllers
     public class AdminController : Controller
     {
         private readonly CnpmContext _context;
+        private readonly IUserService _userService;
 
-        public AdminController(CnpmContext context)
+        public AdminController(CnpmContext context, IUserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         // ===============================================
@@ -95,32 +98,30 @@ namespace backend.Controllers
         // ===============================================
         // 3. HỆ THỐNG REPORT (BÁO CÁO VI PHẠM)
         // ===============================================
-        [Authorize] // User gửi báo cáo
-        [HttpPost("reports")]
-        public async Task<IActionResult> SubmitReport([FromBody] ReportRequest req)
-        {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var report = new Report
-            {
-                ReportedByUserId = userId,
-                EntityType = req.EntityType,
-                EntityId = req.EntityId,
-                Reason = req.Reason,
-                Description = req.Description,
-                Status = "Pending",
-                CreatedAt = DateTime.Now
-            };
-            _context.Reports.Add(report);
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, message = "Đã gửi báo cáo cho Admin" });
-        }
-
         [Authorize(Roles = "Admin")] // Admin xem báo cáo
         [HttpGet("reports")]
         public async Task<IActionResult> GetReports()
         {
             var reports = await _context.Reports.OrderByDescending(r => r.CreatedAt).ToListAsync();
             return Ok(new { success = true, data = reports });
+        }
+
+        // ==============================================================
+        // CHO PHÉP USER TỰ NÂNG CẤP ROLE (DÙNG ĐỂ DEMO KHÔNG CẦN THANH TOÁN)
+        // ==============================================================
+        [Authorize] // Ai cũng gọi được
+        [HttpPut("upgrade-role")]
+        public async Task<IActionResult> UpgradeRole([FromBody] ChangeRoleRequest req)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            if (req == null || string.IsNullOrEmpty(req.Role))
+                return BadRequest(new { success = false, message = "Role không được để trống" });
+
+            // Gọi hàm đổi Role (Sếp nhớ đảm bảo IUserService có hàm này nhé)
+            await _userService.ChangeUserRoleAsync(userId, req.Role);
+
+            return Ok(new { success = true, message = $"Đã nâng cấp lên quyền {req.Role.ToUpper()} thành công!" });
         }
     }
 }

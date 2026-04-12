@@ -1,8 +1,10 @@
 ﻿using backend.DTO;
 using backend.Exceptions;
+using backend.Hubs;
 using backend.Models;
-using Newtonsoft.Json;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace backend.Services
 {
@@ -10,11 +12,13 @@ namespace backend.Services
     {
         private readonly CnpmContext _context;
         private readonly IEmailService _emailService;
+        private readonly IHubContext<NotificationHub> _hubContext; // 🔴 Thêm HubContext
 
-        public BookingService(CnpmContext context, IEmailService emailService)
+        public BookingService(CnpmContext context, IEmailService emailService, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
             _emailService = emailService;
+            _hubContext = hubContext;
         }
 
         public async Task CreateBookingAsync(Guid userId, BookingRequest req)
@@ -196,6 +200,52 @@ namespace backend.Services
 
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
+
+            if (ownerId.HasValue)
+            {
+                var notification = new Notification
+                {
+                    UserId = ownerId.Value,
+                    Title = "🎉 Đơn đặt mới!",
+                    Content = $"Khách {req.ContactName} vừa đặt {productName}",
+                    IsRead = false,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Notifications.Add(notification);
+                await _context.SaveChangesAsync();
+
+                // 🔴 BẮN REAL-TIME Ở ĐÂY
+                // Gửi cho đúng người sở hữu (dựa vào UserId của họ)
+                await _hubContext.Clients.User(ownerId.Value.ToString()).SendAsync("ReceiveNotification", new
+                {
+                    id = notification.Id,
+                    title = notification.Title,
+                    content = notification.Content,
+                    createdAt = notification.CreatedAt,
+                    isRead = false
+                });
+            }
+
+            var customerNotification = new Notification
+            {
+                UserId = userId,
+                Title = "✅ Đặt chỗ thành công!",
+                Content = $"Đơn đặt {productName} của bạn đã được ghi nhận và đang chờ xác nhận. Mã đơn: #{booking.Id}",
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            };
+            _context.Notifications.Add(customerNotification);
+            await _context.SaveChangesAsync();
+
+            // Bắn SignalR kêu "ting ting" cho Khách
+            await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveNotification", new
+            {
+                id = customerNotification.Id,
+                title = customerNotification.Title,
+                content = customerNotification.Content,
+                createdAt = customerNotification.CreatedAt,
+                isRead = false
+            });
         }
     }
 }

@@ -1,18 +1,19 @@
-﻿using backend.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Text;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using backend.Hubs;
 using backend.Middlewares;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
+using backend.Models;
 using backend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddSignalR();
 // Add services to the container.
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -88,6 +89,22 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(key),
             ClockSkew = TimeSpan.Zero
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                // Nếu request gửi đến Hub và có chứa token trong URL
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notification"))
+                {
+                    context.Token = accessToken; // Lấy token bỏ vào context cho .NET xác thực
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 // ------------------------------------------------------------------------------
 
@@ -121,6 +138,8 @@ app.UseStaticFiles();
 
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
+
+app.MapHub<NotificationHub>("/hubs/notification");
 
 app.UseAuthentication();
 

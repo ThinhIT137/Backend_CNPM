@@ -897,6 +897,8 @@ public partial class CnpmContext : DbContext
             entity.Property(e => e.BookingType).HasColumnName("booking_type").IsRequired();
             entity.Property(e => e.ContactName).HasColumnName("contact_name").IsRequired();
             entity.Property(e => e.ContactPhone).HasColumnName("contact_phone").IsRequired();
+            entity.Property(e => e.ContactAddress).HasColumnName("contact_address");
+
             entity.Property(e => e.Note).HasColumnName("note");
             entity.Property(e => e.TotalAmount).HasColumnName("total_amount");
             entity.Property(e => e.PaymentStatus).HasColumnName("payment_status").HasDefaultValue("Unpaid");

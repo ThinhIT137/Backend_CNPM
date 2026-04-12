@@ -18,14 +18,24 @@ namespace backend.Services
         public async Task ChangeUserRoleAsync(Guid id, string newRole)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
-                throw new NotFoundException("Không tìm thấy người dùng này");
+            if (user == null) throw new NotFoundException("Không tìm thấy người dùng");
 
-            var validRoles = new[] { "Admin", "Owner", "User" };
-            if (!validRoles.Contains(newRole))
-                throw new BadRequestException("Quyền (Role) không hợp lệ. Chỉ chấp nhận: Admin, Owner, User");
+            // 1. Danh sách các Role hợp lệ (viết thường hết để dễ so sánh)
+            var validRoles = new List<string> { "user", "admin", "hotel", "tour", "owner" };
 
-            user.Role = newRole;
+            // 2. Chuyển role gửi từ FE về viết thường để check
+            string inputRole = newRole.ToLower();
+
+            if (!validRoles.Contains(inputRole))
+            {
+                throw new BadRequestException("Quyền (Role) không hợp lệ. Chỉ chấp nhận: User, Admin, Hotel, Tour, Owner");
+            }
+
+            // 3. Chuẩn hóa lại định dạng trước khi lưu vào DB (Viết hoa chữ cái đầu)
+            // Ví dụ: "hotel" -> "Hotel"
+            string formattedRole = char.ToUpper(inputRole[0]) + inputRole.Substring(1);
+
+            user.Role = formattedRole;
             await _context.SaveChangesAsync();
         }
 

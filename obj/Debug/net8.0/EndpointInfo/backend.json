@@ -71,7 +71,19 @@
       }
     },
     "/api/Admin/reports": {
-      "post": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/upgrade-role": {
+      "put": {
         "tags": [
           "Admin"
         ],
@@ -79,31 +91,21 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportRequest"
+                "$ref": "#/components/schemas/ChangeRoleRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportRequest"
+                "$ref": "#/components/schemas/ChangeRoleRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportRequest"
+                "$ref": "#/components/schemas/ChangeRoleRequest"
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Admin"
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -349,6 +351,18 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/my-bookings": {
+      "get": {
+        "tags": [
+          "Booking"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -743,6 +757,38 @@
         }
       }
     },
+    "/api/Hotel/admin/pending": {
+      "get": {
+        "tags": [
+          "Hotel"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Hotel/rooms/{roomId}": {
       "put": {
         "tags": [
@@ -1049,6 +1095,41 @@
       "get": {
         "tags": [
           "Marker"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Marker/admin/all": {
+      "get": {
+        "tags": [
+          "Marker"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Marker/admin/{id}": {
+      "delete": {
+        "tags": [
+          "Marker"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -1746,6 +1827,38 @@
         }
       }
     },
+    "/api/Tour/admin/pending": {
+      "get": {
+        "tags": [
+          "Tour"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/TouristArea/tourist_area_user": {
       "get": {
         "tags": [
@@ -2020,6 +2133,80 @@
         }
       }
     },
+    "/api/TouristArea/approve/{id}": {
+      "put": {
+        "tags": [
+          "TouristArea"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/TouristArea/admin/pending": {
+      "get": {
+        "tags": [
+          "TouristArea"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/TouristPlace/tourist_place": {
       "get": {
         "tags": [
@@ -2233,6 +2420,80 @@
         }
       }
     },
+    "/api/TouristPlace/approve/{id}": {
+      "put": {
+        "tags": [
+          "TouristPlace"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/TouristPlace/admin/pending": {
+      "get": {
+        "tags": [
+          "TouristPlace"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/User/list": {
       "get": {
         "tags": [
@@ -2329,6 +2590,68 @@
           }
         }
       }
+    },
+    "/api/User/reports": {
+      "post": {
+        "tags": [
+          "User"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/User/upgrade-role": {
+      "put": {
+        "tags": [
+          "User"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2379,6 +2702,7 @@
       "BookingRequest": {
         "required": [
           "bookingType",
+          "contactAddress",
           "contactName",
           "contactPhone"
         ],
@@ -2393,6 +2717,10 @@
             "type": "string"
           },
           "contactPhone": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "contactAddress": {
             "minLength": 1,
             "type": "string"
           },

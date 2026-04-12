@@ -1,8 +1,10 @@
 ﻿using backend.DTO;
+using backend.Hubs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -14,12 +16,14 @@ namespace backend.Controllers
     public class BookingController : Controller
     {
         private readonly IBookingService _bookingService;
+        private readonly IHubContext<NotificationHub> _hubContext;
         private readonly CnpmContext _context;
 
-        public BookingController(IBookingService bookingService, CnpmContext context)
+        public BookingController(IBookingService bookingService, CnpmContext context, IHubContext<NotificationHub> hubContext)
         {
             _bookingService = bookingService;
             _context = context;
+            _hubContext = hubContext;
         }
 
         // ===============================================
@@ -40,7 +44,7 @@ namespace backend.Controllers
         // ===============================================
         // 2. OWNER: XEM THỐNG KÊ DOANH THU & ĐƠN HÀNG
         // ===============================================
-        [Authorize(Roles = "Owner, Admin")]
+        [Authorize(Roles = "Owner, Admin, Hotel, Tour")]
         [HttpGet("dashboard-stats")]
         public async Task<IActionResult> GetOwnerDashboardStats()
         {
@@ -97,7 +101,7 @@ namespace backend.Controllers
         // ===============================================
         // 3. OWNER: LẤY DANH SÁCH ĐƠN KHÁCH VỪA ĐẶT
         // ===============================================
-        [Authorize(Roles = "Owner, Admin")]
+        [Authorize(Roles = "Owner, Admin, Hotel, Tour")]
         [HttpGet("received-bookings")]
         public async Task<IActionResult> GetReceivedBookings()
         {
@@ -165,19 +169,85 @@ namespace backend.Controllers
                 return BadRequest(new { success = false, message = "Trạng thái không hợp lệ" });
 
             booking.BookingStatus = req.Status;
-
-            // Gửi chuông thông báo cho Khách hàng biết đơn đã được Owner duyệt
-            _context.Notifications.Add(new Notification
+            var notif = new Notification
             {
-                UserId = booking.UserId,
-                Title = "Cập nhật đơn hàng",
+                UserId = booking.UserId, // ID CỦA KHÁCH HÀNG
+                Title = req.Status == "Confirmed" ? "✅ Đơn hàng đã duyệt" : req.Status == "Cancelled" ? "❌ Đơn hàng bị hủy" : "🎉 Đơn hàng hoàn tất",
                 Content = $"Đơn đặt chỗ #{id} của bạn đã được chuyển sang trạng thái: {req.Status}",
                 IsRead = false,
                 CreatedAt = DateTime.Now
+            };
+            _context.Notifications.Add(notif);
+            await _context.SaveChangesAsync();
+
+            await _hubContext.Clients.User(booking.UserId.ToString()).SendAsync("ReceiveNotification", new
+            {
+                id = notif.Id,
+                title = notif.Title,
+                content = notif.Content,
+                createdAt = notif.CreatedAt,
+                isRead = false
             });
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = $"Đã cập nhật đơn hàng thành {req.Status}" });
+        }
+
+        // ===============================================
+        // KHÁCH HÀNG: LẤY LỊCH SỬ ĐƠN ĐÃ ĐẶT (MY BOOKINGS)
+        // ===============================================
+        [HttpGet("my-bookings")]
+        public async Task<IActionResult> GetMyBookings()
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out Guid userId))
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            try
+            {
+                var bookings = await _context.Bookings
+                    .Include(b => b.BookingDetails).ThenInclude(bd => bd.HotelRoom).ThenInclude(hr => hr!.Hotel)
+                    .Include(b => b.BookingDetails).ThenInclude(bd => bd.TourDeparture).ThenInclude(td => td!.Tour)
+                    .Where(b => b.UserId == userId)
+                    .OrderByDescending(b => b.CreatedAt)
+                    .AsNoTracking() // 🔴 NHẸ RAM
+                    .AsSplitQuery() // 🔴 CỨU TINH CHỐNG LỖI 500 (Chia nhỏ SQL)
+                    .ToListAsync();
+
+                var result = bookings.Select(b => new
+                {
+                    id = b.Id,
+                    customerName = b.ContactName,
+                    customerPhone = b.ContactPhone,
+                    contactAddress = b.ContactAddress, // 🔴 BẾ THÊM ÔNG THẦN NÀY VÀO ĐÂY NHÉ SẾP
+                    bookingType = b.BookingType,
+                    totalAmount = b.TotalAmount,
+                    paymentStatus = b.PaymentStatus,
+                    bookingStatus = b.BookingStatus,
+                    createdAt = b.CreatedAt,
+
+                    // 🔴 Bọc Null kỹ càng, thách DB có thiếu dữ liệu cũng không sập được
+                    details = (b.BookingDetails ?? Enumerable.Empty<Booking_Detail>()).Select(bd => new
+                    {
+                        detailId = bd.Id,
+                        unitPrice = bd.UnitPrice,
+                        productName = bd.HotelRoomId.HasValue
+                            ? $"{bd.HotelRoom?.Hotel?.Name ?? "Khách sạn"} - {bd.HotelRoom?.RoomName ?? "Phòng"}"
+                            : bd.TourDeparture?.Tour?.Name ?? "Tour",
+                        info = bd.HotelRoomId.HasValue
+                            ? $"Tầng {bd.HotelRoom?.Floor} | {bd.HotelRoom?.RoomType}"
+                            : (bd.IsPrivateTour ? "Bao nguyên xe" : $"Ghế: {bd.SeatNumber ?? "N/A"}")
+                    }).ToList()
+                }).ToList();
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                // In thẳng lỗi thật ra Terminal để bắt bệnh nếu còn xui xẻo
+                Console.WriteLine("LỖI GET MY BOOKINGS: " + ex.Message);
+                return StatusCode(500, new { success = false, message = "Lỗi nội bộ: " + ex.Message });
+            }
         }
     }
 }

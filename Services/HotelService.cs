@@ -158,12 +158,12 @@ namespace backend.Services
             }
 
             hotel.ClickCount += 1;
-
+            bool checkIsFavorite = false;
             if (user != null)
             {
                 var history = GetHistoryUser(user);
                 if (history.Hottel == null) history.Hottel = new List<int>();
-
+                checkIsFavorite = await _context.Favorites.AnyAsync(f => f.UserId == user.Id && f.EntityId == id && f.EntityType == "hotel");
                 UpdateHistoryQueue(history.Hottel, id);
 
                 user.User_Search_History = JsonConvert.SerializeObject(history);
@@ -199,16 +199,15 @@ namespace backend.Services
                     id = hotel.Tourist_Place.Id,
                     name = hotel.Tourist_Place.Name
                 } : null,
-
-                // 🔴 CHỖ NÀY QUAN TRỌNG: Lấy đủ thông tin cho Form Đặt Phòng
+                isFavorite = checkIsFavorite,
                 rooms = hotel.Rooms.Select(r => new
                 {
                     id = r.Id,
                     roomName = r.RoomName,
-                    floor = r.Floor, // Phải có tầng để Frontend gom nhóm
+                    floor = r.Floor,
                     roomType = r.RoomType,
                     price = r.Price,
-                    status = r.Status // Phải có Status ('Available', 'Booked') để tô màu xám/xanh
+                    status = r.Status
                 }).ToList(),
 
                 images = images,

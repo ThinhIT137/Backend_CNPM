@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace backend.Controllers
 {
@@ -106,34 +107,51 @@ namespace backend.Controllers
             int page = req.TourismProduct?.page ?? 1;
             int pageSize = req.TourismProduct?.pageSize ?? 10;
 
-            User? user = null;
+            // 🔴 2. LẤY USER AN TOÀN CHO CẢ GUEST LẪN NGƯỜI ĐĂNG NHẬP
+            User? currentUser = null;
             if (User.Identity != null && User.Identity.IsAuthenticated)
             {
                 var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (Guid.TryParse(userIdString, out Guid parsedId))
                 {
-                    user = await _context.Users.Where(u => u.Id == parsedId).FirstOrDefaultAsync();
+                    currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == parsedId);
                 }
             }
 
-            var touristPlaceDetail = await _context.TouristPlaces
-                .Select(tp => new
-                {
-                    tp.Id,
-                    tp.Name,
-                    tp.Latitude,
-                    tp.Longitude,
-                    tp.Description
-                })
-                .FirstOrDefaultAsync(tp => tp.Id == id);
+            var touristPlace = await _context.TouristPlaces.FirstOrDefaultAsync(tp => tp.Id == id);
+            if (touristPlace == null) throw new NotFoundException("Không tìm thấy địa điểm");
 
-            if (touristPlaceDetail == null) throw new NotFoundException("Không tìm thấy địa điểm");
+            var placeImages = await _context.Imgs
+                .Where(img => img.EntityType == "tourist_place" && img.EntityId == id)
+                .ToListAsync();
 
-            Console.WriteLine("->>>>>>>>>: COooooooooooooooooooooooooooooooooooooooooooooooooooooo");
+            // 🔴 3. KIỂM TRA THẢ TIM
+            bool checkIsFavorite = false;
+            if (currentUser != null)
+            {
+                checkIsFavorite = await _context.Favorites.AnyAsync(i => i.UserId == currentUser.Id && i.EntityId == touristPlace.Id && i.EntityType == "tourist_place");
+            }
+
+            var touristPlaceDetail = new
+            {
+                id = touristPlace.Id,
+                name = touristPlace.Name,
+                title = touristPlace.Title,
+                address = touristPlace.Address,
+                description = touristPlace.Description,
+                latitude = touristPlace.Latitude,
+                longitude = touristPlace.Longitude,
+                rating_average = touristPlace.RatingAverage,
+                favorite_count = touristPlace.FavoriteCount,
+                click_count = touristPlace.ClickCount,
+                isFavorite = checkIsFavorite, // 🔴 4. ĐÃ NHÉT BIẾN NÀY VÀO ĐỂ FRONTEND NHẬN ĐƯỢC
+                images = placeImages.ToList(),
+                coverImageUrl = placeImages.FirstOrDefault(img => img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+            };
 
             if (type == "Hotel")
             {
-                var paged_result = await _hottelService.GetHotelsByTouristPlaceId(id, user, page, pageSize);
+                var paged_result = await _hottelService.GetHotelsByTouristPlaceId(id, currentUser, page, pageSize);
 
                 var hotelIds = paged_result.Items.Select(h => h.Id).ToList();
                 var images = await _context.Imgs
@@ -176,7 +194,7 @@ namespace backend.Controllers
             // 2. TRẢ VỀ DỮ LIỆU TOUR
             else if (type == "Tour")
             {
-                var paged_result = await _tourService.GetToursByTouristPlaceId(id, user, page, pageSize);
+                var paged_result = await _tourService.GetToursByTouristPlaceId(id, currentUser, page, pageSize);
 
                 var tourIds = paged_result.Items.Select(t => t.Id).ToList();
                 var images = await _context.Imgs
@@ -278,6 +296,72 @@ namespace backend.Controllers
         {
             var data = await _touristPlaceService.GetAllForDropdownAsync();
             return Ok(new { success = true, data = data });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("approve/{id:int}")]
+        public async Task<IActionResult> ApproveTouristPlace(int id, [FromBody] ApprovalRequest req)
+        {
+            var place = await _context.TouristPlaces.FindAsync(id);
+            if (place == null) return NotFound(new { success = false, message = "Không tìm thấy địa điểm" });
+
+            place.Status = req.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = $"Đã duyệt địa điểm thành {req.Status}" });
+        }
+
+        // ==========================================
+        // ADMIN: LẤY DANH SÁCH ĐỊA ĐIỂM ĐANG CHỜ DUYỆT
+        // GET: /api/TouristPlace/admin/pending
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/pending")]
+        public async Task<IActionResult> GetAllPendingTouristPlaces([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.TouristPlaces.Where(p => p.Status == "Pending");
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var placeIds = items.Select(p => p.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "tourist_place" && placeIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
         }
     }
 }

@@ -16,6 +16,12 @@ namespace backend.Middlewares
 
         public async Task InvokeAsync(HttpContext context)
         {
+            if (context.Request.Path.StartsWithSegments("/hubs"))
+            {
+                await _next(context);
+                return;
+            }
+
             if (context.Request.Method.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase))
             {
                 await _next(context);

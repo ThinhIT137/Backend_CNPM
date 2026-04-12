@@ -3,6 +3,7 @@ using backend.DTO;
 using backend.Exceptions;
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Linq;
 
 namespace backend.Services
@@ -44,6 +45,21 @@ namespace backend.Services
                 tour.RatingCount += 1;
                 tour.RatingAverage = (decimal)tour.RatingTotal / tour.RatingCount;
             }
+            else if (req.EntityType.Equals("tourist_area", StringComparison.OrdinalIgnoreCase))
+            {
+                var area = await _context.TouristAreas.FindAsync(req.EntityId) ?? throw new NotFoundException("Không tìm thấy Khu du lịch");
+                area.RatingTotal += req.Star;
+                area.RatingCount += 1;
+                area.RatingAverage = (decimal)area.RatingTotal / area.RatingCount;
+            }
+            // 🔴 BỔ SUNG CHO ĐỊA ĐIỂM DU LỊCH (TOURIST PLACE)
+            else if (req.EntityType.Equals("tourist_place", StringComparison.OrdinalIgnoreCase))
+            {
+                var place = await _context.TouristPlaces.FindAsync(req.EntityId) ?? throw new NotFoundException("Không tìm thấy Địa điểm du lịch");
+                place.RatingTotal += req.Star;
+                place.RatingCount += 1;
+                place.RatingAverage = (decimal)place.RatingTotal / place.RatingCount;
+            }
 
             await _context.SaveChangesAsync();
         }
@@ -83,17 +99,29 @@ namespace backend.Services
 
         private async Task UpdateFavoriteCount(int id, string type, int change)
         {
-            if (type == "hotel")
+            string entityType = type.ToLower();
+
+            if (entityType == "hotel")
             {
                 var h = await _context.Hotels.FindAsync(id);
                 if (h != null) h.FavoriteCount += change;
             }
-            else if (type == "tour")
+            else if (entityType == "tour")
             {
                 var t = await _context.Tours.FindAsync(id);
                 if (t != null) t.FavoriteCount += change;
             }
-            // Tương tự cho tourist_area...
+            // 🔴 BÙ ĐẮP LỖI LẦM CỦA SẾP ĐÂY:
+            else if (entityType == "tourist_area")
+            {
+                var ta = await _context.TouristAreas.FindAsync(id);
+                if (ta != null) ta.FavoriteCount += change;
+            }
+            else if (entityType == "tourist_place")
+            {
+                var tp = await _context.TouristPlaces.FindAsync(id);
+                if (tp != null) tp.FavoriteCount += change;
+            }
         }
 
         // ==========================================

@@ -12,7 +12,7 @@ namespace backend.Models
         public string ContactName { get; set; } = null!;
         public string ContactPhone { get; set; } = null!;
         public string? Note { get; set; }
-
+        public string? ContactAddress { get; set; } // 🔴 THÊM CỘT NÀY VÀO NÈ
         public decimal TotalAmount { get; set; }
         public string PaymentStatus { get; set; } = "Unpaid"; // Unpaid, Paid, Refunded
         public string BookingStatus { get; set; } = "Pending"; // Pending, Confirmed, Completed, Cancelled

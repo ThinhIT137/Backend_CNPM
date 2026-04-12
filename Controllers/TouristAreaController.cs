@@ -253,24 +253,29 @@ namespace backend.Controllers
         }
 
 
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost("DetailTouristAreaUser")]
         public async Task<IActionResult> DetailTouristAreaUser([FromBody] TourismProductDetailRequest req)
         {
-            var user = await getUser();
+            if (req == null) throw new BadRequestException("Không nhận được dữ liệu");
+            if (req.TourismProduct == null)
+            {
+                throw new BadRequestException("Đối tượng TourismProduct bị null. Hãy check lại chữ hoa/chữ thường trong JSON!");
+            }
 
-            //if (req == null) return BadRequest("Không nhận được dữ liệu");
+            User currentUser = await getUser();
 
-            //if (req.TourismProduct == null)
-            //{
-            //    throw new BadRequestException("Đối tượng TourismProduct bị null. Hãy check lại chữ hoa/chữ thường trong JSON!");
-            //}
+            await _touristAreaService.update_click_tourist_area(req.id, currentUser);
 
-            await _touristAreaService.update_click_tourist_area(req.id, user);
-
-            var data = await _touristAreaService.GetDetailTouristAreasAsync(req.id, req.type, user, req.TourismProduct.page, req.TourismProduct.pageSize);
+            var data = await _touristAreaService.GetDetailTouristAreasAsync(req.id, req.type, currentUser, req.TourismProduct.page, req.TourismProduct.pageSize);
             var touristArea = data.tourist_Area_Detail;
             var images = await _context.Imgs.Where(img => img.EntityType == "tourist_area" && touristArea.Id == img.EntityId).ToListAsync();
+
+            bool checkIsFavorite = false;
+            if (currentUser != null)
+            {
+                checkIsFavorite = await _context.Favorites.AnyAsync(i => i.UserId == currentUser.Id && i.EntityId == touristArea.Id && i.EntityType == "tourist_area");
+            }
 
             if (req.type == "TouristPlace")
             {
@@ -318,6 +323,7 @@ namespace backend.Controllers
                             rating_average = touristArea.RatingAverage,
                             click_count = touristArea.ClickCount,
                             favorite_count = touristArea.FavoriteCount,
+                            isFavorite = checkIsFavorite,
                             trending_Score = Math.Round((touristArea.RatingAverage * 10m) + (touristArea.FavoriteCount * 2m) + (touristArea.ClickCount * 0.1m), 2),
                             latitude = touristArea.Latitude,
                             longitude = touristArea.Longitude,
@@ -373,6 +379,7 @@ namespace backend.Controllers
                         rating_average = touristArea.RatingAverage,
                         click_count = touristArea.ClickCount,
                         favorite_count = touristArea.FavoriteCount,
+                        isFavorite = checkIsFavorite,
                         trending_Score = Math.Round((touristArea.RatingAverage * 10m) + (touristArea.FavoriteCount * 2m) + (touristArea.ClickCount * 0.1m), 2),
                         latitude = touristArea.Latitude,
                         longitude = touristArea.Longitude,
@@ -485,6 +492,74 @@ namespace backend.Controllers
         {
             var data = await _touristAreaService.GetAllForDropdownAsync();
             return Ok(new { success = true, data = data });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("approve/{id:int}")]
+        public async Task<IActionResult> ApproveTouristArea(int id, [FromBody] ApprovalRequest req)
+        {
+            // Tìm trong DB
+            var area = await _context.TouristAreas.FindAsync(id);
+            if (area == null) return NotFound(new { success = false, message = "Không tìm thấy khu du lịch" });
+
+            // Đổi status
+            area.Status = req.Status; // "Active" hoặc "Rejected"
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = $"Đã duyệt khu du lịch thành {req.Status}" });
+        }
+
+        // ==========================================
+        // ADMIN: LẤY DANH SÁCH KHU DU LỊCH ĐANG CHỜ DUYỆT
+        // GET: /api/TouristArea/admin/pending
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/pending")]
+        public async Task<IActionResult> GetAllPendingTouristAreas([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.TouristAreas.Where(a => a.Status == "Pending");
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var areaIds = items.Select(a => a.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "tourist_area" && areaIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
         }
     }
 }

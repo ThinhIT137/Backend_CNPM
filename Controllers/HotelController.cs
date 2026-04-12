@@ -168,6 +168,58 @@ namespace backend.Controllers
             });
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/pending")]
+        public async Task<IActionResult> GetAllPendingHotels([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Hotels.Where(h => h.Status == "Pending");
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(h => h.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // Lấy ảnh bìa cho đống này (nếu cần show ra UI)
+                var hotelIds = items.Select(h => h.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "hotel" && hotelIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    createdAt = a.CreatedAt,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy danh sách khách sạn chờ duyệt thành công",
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
+        }
+
         [Authorize(Roles = "Owner, Admin, Hotel")]
         [HttpPut("rooms/{roomId:int}")]
         public async Task<IActionResult> UpdateRoom(int roomId, [FromBody] RoomRequest req)

@@ -94,6 +94,7 @@ namespace backend.Controllers
 
             // Dù là ai thì cũng tăng ClickCount
             tour.ClickCount += 1;
+            bool checkIsFavorite = false;
 
             // Nếu là User đã đăng nhập thì lưu thêm lịch sử
             if (user != null)
@@ -104,6 +105,8 @@ namespace backend.Controllers
                 UpdateHistoryQueue(history.Tour, id);
                 user.User_Search_History = JsonConvert.SerializeObject(history);
                 _context.Users.Update(user);
+
+                checkIsFavorite = await _context.Favorites.AnyAsync(f => f.UserId == user.Id && f.EntityId == id && f.EntityType == "tour");
             }
 
             // Lưu thay đổi (ClickCount và User_History nếu có)
@@ -115,14 +118,14 @@ namespace backend.Controllers
             {
                 success = true,
                 message = "Lấy chi tiết Tour thành công",
-                data = BuildTourDetailData(tour, images)
+                data = BuildTourDetailData(tour, images, checkIsFavorite)
             });
         }
 
         // ==========================================
         // HÀM HELPER ĐÓNG GÓI DỮ LIỆU JSON CHUẨN
         // ==========================================
-        private object BuildTourDetailData(Tour tour, List<Img> images)
+        private object BuildTourDetailData(Tour tour, List<Img> images, bool isFavorite)
         {
             return new
             {
@@ -183,6 +186,7 @@ namespace backend.Controllers
                 favorite_count = tour.FavoriteCount,
                 trending_Score = Math.Round((tour.RatingAverage * 10m) + (tour.FavoriteCount * 2m) + (tour.ClickCount * 0.1m), 2),
                 type = "tour",
+                isFavorite = isFavorite,
 
                 images = images.ToList(),
                 coverImageUrl = images.FirstOrDefault(img => img.IsCover)?.url ?? "/Img/ImgNull.jpg"
@@ -348,6 +352,60 @@ namespace backend.Controllers
             // AvailableSeats có thể tự tính lại dựa trên TotalSeats - số vé đã đặt (tùy logic sếp)
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Cập nhật chuyến đi thành công" });
+        }
+
+
+        // ==========================================
+        // ADMIN: LẤY DANH SÁCH TOUR ĐANG CHỜ DUYỆT
+        // GET: /api/Tour/admin/pending
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/pending")]
+        public async Task<IActionResult> GetAllPendingTours([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Tours.Where(t => t.Status == "Pending");
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var tourIds = items.Select(t => t.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "tour" && tourIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    durationDays = a.DurationDays, // Tour có số ngày thay vì địa chỉ
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
         }
 
         [Authorize(Roles = "Owner, Admin, Tour")]
