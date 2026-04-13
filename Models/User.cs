@@ -35,6 +35,4 @@ public partial class User
     public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
     public virtual ICollection<Marker> Markers { get; set; } = new List<Marker>();
     public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
-
-
 }

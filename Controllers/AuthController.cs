@@ -236,7 +236,7 @@ namespace backend.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-            await _authService.ChangePasswordAsync(user, req.Password, req.Token, req.expired);
+            await _authService.ChangePasswordAsync(user, req.Password, req.Token, DateTime.Now);
             var (accessToken, refreshToken) = await _authService.IssueTokensAsync(user);
             Response.Cookies.Append("RefreshToken", refreshToken, new CookieOptions
             {

@@ -230,7 +230,7 @@ namespace backend.Services
                 Tourist_Place_Id = req.Tourist_Place_Id,
                 Price = req.Price,
                 Created_By_UserId = ownerId,
-                Status = "Approved", // QUAN TRỌNG: Mới tạo thì phải chờ Admin duyệt
+                Status = "Pending", // QUAN TRỌNG: Mới tạo thì phải chờ Admin duyệt
                 CreatedAt = DateTime.Now
             };
 

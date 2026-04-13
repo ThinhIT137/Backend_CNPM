@@ -146,5 +146,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers().RequireRateLimiting("api");
-//app.Run($"http://0.0.0.0:{port}");
-app.Run();
+app.Run($"http://0.0.0.0:{port}");
+//app.Run();
