@@ -419,5 +419,74 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Xóa chuyến đi thành công" });
         }
+
+        // ==========================================
+        // ADMIN: LẤY TẤT CẢ TOUR (ĐỂ QUẢN LÝ TỔNG)
+        // GET: /api/Tour/admin/all
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllToursForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            try
+            {
+                var query = _context.Tours.AsQueryable();
+
+                // Lọc theo từ khóa (Tên tour hoặc Điểm xuất phát)
+                if (!string.IsNullOrEmpty(keyword))
+                {
+                    query = query.Where(t => t.Name.Contains(keyword) || t.DepartureLocationName.Contains(keyword));
+                }
+
+                // Lọc theo trạng thái
+                if (!string.IsNullOrEmpty(status))
+                {
+                    query = query.Where(t => t.Status == status);
+                }
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var tourIds = items.Select(t => t.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "tour" && tourIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    durationDays = a.DurationDays,
+                    vehicle = a.Vehicle,
+                    price = a.Price,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    createdAt = a.CreatedAt,
+                    createdByUserId = a.Created_By_UserId,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
+        }
     }
 }

@@ -33,17 +33,61 @@ namespace backend.Controllers
         [HttpGet("index")]
         public async Task<IActionResult> Index()
         {
-            var dataTouristArea = await _touristAreaService.GetTrendingTouristAreasAsync(1, 10);
-            var touristAreaIds = dataTouristArea.Items.Select(t => t.Id).ToList();
-            var images = await _context.Imgs.Where(img => img.EntityType == "tourist_area" && touristAreaIds.Contains(img.EntityId)).ToListAsync();
+            // ==========================================
+            // 1. QUERY DATA KHÔNG TRACKING (Tối ưu performance)
+            // ==========================================
 
-            var dataTouristPlace = "";
-            var dataHottels = "";
-            var dataTour = "";
+            // Lấy 10 Tourist Area (Khu du lịch)
+            var topTouristAreas = await _context.TouristAreas
+                .AsNoTracking()
+                .Where(a => a.Status == "Available" || a.Status == "Active")
+                .OrderByDescending(a => (a.RatingAverage * 10m) + (a.FavoriteCount * 2m) + (a.ClickCount * 0.1m))
+                .Take(10)
+                .ToListAsync();
 
+            // Lấy 10 Tourist Place (Địa điểm du lịch)
+            var topTouristPlaces = await _context.TouristPlaces
+                .AsNoTracking()
+                .Where(p => p.Status == "Available" || p.Status == "Active")
+                .OrderByDescending(p => (p.RatingAverage * 10m) + (p.FavoriteCount * 2m) + (p.ClickCount * 0.1m))
+                .Take(10)
+                .ToListAsync();
+
+            // Lấy 10 Tour
+            var topTours = await _context.Tours
+                .AsNoTracking()
+                .Where(t => t.Status == "Available" || t.Status == "Active")
+                .OrderByDescending(t => (t.RatingAverage * 10m) + (t.FavoriteCount * 2m) + (t.ClickCount * 0.1m))
+                .Take(10)
+                .ToListAsync();
+
+            // Lấy 10 Hotel (Khách sạn)
+            var topHotels = await _context.Hotels
+                .AsNoTracking()
+                .Where(h => h.Status == "Available" || h.Status == "Active")
+                .OrderByDescending(h => (h.RatingAverage * 10m) + (h.FavoriteCount * 2m) + (h.ClickCount * 0.1m))
+                .Take(10)
+                .ToListAsync();
+
+            // ==========================================
+            // 2. LẤY HÌNH ẢNH (Gom ID để tránh N+1 Query)
+            // ==========================================
+            var touristAreaIds = topTouristAreas.Select(t => t.Id).ToList();
+            var touristPlaceIds = topTouristPlaces.Select(p => p.Id).ToList();
+            var tourIds = topTours.Select(t => t.Id).ToList();
+            var hotelIds = topHotels.Select(h => h.Id).ToList();
+
+            var areaImages = await _context.Imgs.AsNoTracking().Where(img => img.EntityType == "tourist_area" && touristAreaIds.Contains(img.EntityId)).ToListAsync();
+            var placeImages = await _context.Imgs.AsNoTracking().Where(img => img.EntityType == "tourist_place" && touristPlaceIds.Contains(img.EntityId)).ToListAsync();
+            var tourImages = await _context.Imgs.AsNoTracking().Where(img => img.EntityType == "tour" && tourIds.Contains(img.EntityId)).ToListAsync();
+            var hotelImages = await _context.Imgs.AsNoTracking().Where(img => img.EntityType == "hotel" && hotelIds.Contains(img.EntityId)).ToListAsync();
+
+            // ==========================================
+            // 3. MAP DỮ LIỆU ĐỂ TRẢ VỀ FRONTEND
+            // ==========================================
             var dataResult = new
             {
-                touristArea = dataTouristArea.Items.Select(a => new
+                touristArea = topTouristAreas.Select(a => new
                 {
                     id = a.Id,
                     name = a.Name,
@@ -57,11 +101,73 @@ namespace backend.Controllers
                     latitude = a.Latitude,
                     longitude = a.Longitude,
                     type = "tourist_area",
-                    images = images.Where(img => img.EntityId == a.Id).ToList(),
-                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+                    images = areaImages.Where(img => img.EntityId == a.Id).ToList(),
+                    coverImageUrl = areaImages.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
                 }),
-            };
 
+                touristPlace = topTouristPlaces.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    description = a.Description,
+                    rating_average = a.RatingAverage,
+                    click_count = a.ClickCount,
+                    favorite_count = a.FavoriteCount,
+                    trending_Score = Math.Round((a.RatingAverage * 10m) + (a.FavoriteCount * 2m) + (a.ClickCount * 0.1m), 2),
+                    latitude = a.Latitude,
+                    longitude = a.Longitude,
+                    type = "tourist_place", // Thêm type chuẩn để Front-end dễ dùng
+                    images = placeImages.Where(img => img.EntityId == a.Id).ToList(),
+                    coverImageUrl = placeImages.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+                }),
+
+                tour = topTours.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    description = a.Description,
+                    durationDays = a.DurationDays,
+                    numberOfPeople = a.NumberOfPeople,
+                    price = a.Price,
+                    vehicle = a.Vehicle,
+                    tourType = a.TourType,
+                    status = a.Status,
+                    departure = new
+                    {
+                        name = a.DepartureLocationName,
+                        coords = new[] { a.DepartureLatitude, a.DepartureLongitude }
+                    },
+                    rating_average = a.RatingAverage,
+                    click_count = a.ClickCount,
+                    favorite_count = a.FavoriteCount,
+                    trending_Score = Math.Round((a.RatingAverage * 10m) + (a.FavoriteCount * 2m) + (a.ClickCount * 0.1m), 2),
+                    type = "tour",
+                    images = tourImages.Where(img => img.EntityId == a.Id).ToList(),
+                    coverImageUrl = tourImages.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+                }),
+
+                hotel = topHotels.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    description = a.Description,
+                    price = a.Price,
+                    rating_average = a.RatingAverage,
+                    click_count = a.ClickCount,
+                    favorite_count = a.FavoriteCount,
+                    trending_Score = Math.Round((a.RatingAverage * 10m) + (a.FavoriteCount * 2m) + (a.ClickCount * 0.1m), 2),
+                    latitude = a.Latitude,
+                    longitude = a.Longitude,
+                    type = "hotel",
+                    images = hotelImages.Where(img => img.EntityId == a.Id).ToList(),
+                    coverImageUrl = hotelImages.FirstOrDefault(img => img.EntityId == a.Id && img.IsCover)?.url ?? "/Img/ImgNull.jpg"
+                })
+            };
 
             return Ok(new
             {

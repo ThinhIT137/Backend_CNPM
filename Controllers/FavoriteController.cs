@@ -21,5 +21,22 @@ namespace backend.Controllers
             var isAdded = await _service.ToggleFavoriteAsync(userId, req);
             return Ok(new { success = true, isFavorite = isAdded });
         }
+
+        [HttpGet("my-favorites")]
+        public async Task<IActionResult> GetMyFavorites([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+            var userId = Guid.Parse(userIdStr);
+            var data = await _service.GetMyFavoritesAsync(userId, page, pageSize);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách yêu thích thành công",
+                data = data
+            });
+        }
     }
 }

@@ -155,31 +155,61 @@ namespace backend.Controllers
         }
 
         // ===============================================
-        // 4. OWNER: DUYỆT ĐƠN HÀNG (XÁC NHẬN / TỪ CHỐI)
+        // 4. OWNER: DUYỆT HOẶC HỦY ĐƠN HÀNG (KỂ CẢ KHI ĐÃ ĐẶT THÀNH CÔNG)
         // ===============================================
-        [Authorize(Roles = "Owner, Admin")]
+        [Authorize(Roles = "Owner, Admin, Hotel, Tour")]
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateBookingStatus(int id, [FromBody] UpdateBookingStatusReq req)
         {
+            // Tìm đơn hàng kèm thông tin khách
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null) return NotFound(new { success = false, message = "Không tìm thấy đơn đặt" });
 
+            // Kiểm tra tính hợp lệ của trạng thái mới
             var validStatus = new[] { "Confirmed", "Cancelled", "Completed" };
             if (!validStatus.Contains(req.Status))
                 return BadRequest(new { success = false, message = "Trạng thái không hợp lệ" });
 
+            // NẾU đơn hàng đã Completed thì không cho phép đổi trạng thái nữa (Bảo vệ dữ liệu doanh thu)
+            if (booking.BookingStatus == "Completed")
+                return BadRequest(new { success = false, message = "Đơn hàng đã hoàn tất, không thể thay đổi trạng thái." });
+
+            // Thực hiện cập nhật
             booking.BookingStatus = req.Status;
+
+            // Tạo nội dung thông báo linh hoạt theo trạng thái
+            string notifTitle = "";
+            string notifContent = "";
+
+            switch (req.Status)
+            {
+                case "Confirmed":
+                    notifTitle = "✅ Đơn hàng đã được duyệt";
+                    notifContent = $"Tuyệt vời! Đơn đặt chỗ #{id} của bạn đã được chủ cơ sở xác nhận thành công.";
+                    break;
+                case "Cancelled":
+                    notifTitle = "❌ Đơn hàng đã bị hủy bởi chủ";
+                    notifContent = $"Chúng tôi rất tiếc, đơn đặt chỗ #{id} của bạn đã bị hủy bởi chủ cơ sở (do sự cố hoặc yêu cầu của bạn).";
+                    break;
+                case "Completed":
+                    notifTitle = "🎉 Dịch vụ đã hoàn tất";
+                    notifContent = $"Cảm ơn bạn đã sử dụng dịch vụ. Đơn hàng #{id} đã được đánh dấu là hoàn tất.";
+                    break;
+            }
+
             var notif = new Notification
             {
-                UserId = booking.UserId, // ID CỦA KHÁCH HÀNG
-                Title = req.Status == "Confirmed" ? "✅ Đơn hàng đã duyệt" : req.Status == "Cancelled" ? "❌ Đơn hàng bị hủy" : "🎉 Đơn hàng hoàn tất",
-                Content = $"Đơn đặt chỗ #{id} của bạn đã được chuyển sang trạng thái: {req.Status}",
+                UserId = booking.UserId, // Gửi cho Khách hàng
+                Title = notifTitle,
+                Content = notifContent,
                 IsRead = false,
                 CreatedAt = DateTime.Now
             };
+
             _context.Notifications.Add(notif);
             await _context.SaveChangesAsync();
 
+            // Bắn SignalR báo cho Khách biết ngay lập tức
             await _hubContext.Clients.User(booking.UserId.ToString()).SendAsync("ReceiveNotification", new
             {
                 id = notif.Id,
@@ -189,8 +219,7 @@ namespace backend.Controllers
                 isRead = false
             });
 
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, message = $"Đã cập nhật đơn hàng thành {req.Status}" });
+            return Ok(new { success = true, message = $"Đã cập nhật đơn hàng #{id} thành {req.Status}" });
         }
 
         // ===============================================
@@ -248,6 +277,93 @@ namespace backend.Controllers
                 Console.WriteLine("LỖI GET MY BOOKINGS: " + ex.Message);
                 return StatusCode(500, new { success = false, message = "Lỗi nội bộ: " + ex.Message });
             }
+        }
+
+        [HttpPut("{id}/cancel")]
+        public async Task<IActionResult> CancelBooking(int id)
+        {
+            // 1. Lấy và kiểm tra ID người dùng (Khách) đang đăng nhập
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out Guid userId))
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            // 2. Tìm đơn hàng (Nhớ Include để lấy thông tin Owner)
+            var booking = await _context.Bookings
+                .Include(b => b.BookingDetails).ThenInclude(bd => bd.HotelRoom).ThenInclude(hr => hr!.Hotel)
+                .Include(b => b.BookingDetails).ThenInclude(bd => bd.TourDeparture).ThenInclude(td => td!.Tour)
+                .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+
+            if (booking == null)
+                return NotFound(new { success = false, message = "Không tìm thấy đơn đặt chỗ hoặc bạn không có quyền hủy." });
+
+            // 3. Kiểm tra trạng thái
+            if (booking.BookingStatus != "Pending")
+                return BadRequest(new { success = false, message = "Bạn chỉ có thể hủy đơn khi đang ở trạng thái 'Chờ duyệt'." });
+
+            // 4. Cập nhật trạng thái thành Cancelled
+            booking.BookingStatus = "Cancelled";
+
+            // 5. Tạo thông báo cho KHÁCH HÀNG
+            var customerNotif = new Notification
+            {
+                UserId = userId,
+                Title = "❌ Hủy đơn thành công",
+                Content = $"Bạn đã tự hủy đơn đặt chỗ #{id} thành công.",
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            };
+            _context.Notifications.Add(customerNotif);
+
+            // 6. Tìm danh sách OWNER liên quan đến đơn hàng này và tạo thông báo
+            var ownerIds = booking.BookingDetails
+                .Select(bd => bd.HotelRoom?.Hotel?.Created_By_UserId ?? bd.TourDeparture?.Tour?.Created_By_UserId)
+                .Where(ownerId => ownerId.HasValue)
+                .Select(ownerId => ownerId!.Value)
+                .Distinct() // Lọc trùng lặp (ví dụ mua 2 phòng của cùng 1 chủ thì chỉ báo 1 lần)
+                .ToList();
+
+            var ownerNotifs = new List<Notification>();
+            foreach (var ownerId in ownerIds)
+            {
+                var ownerNotif = new Notification
+                {
+                    UserId = ownerId,
+                    Title = "⚠️ Đơn đặt chỗ bị hủy",
+                    Content = $"Khách hàng {booking.ContactName} đã tự hủy đơn đặt chỗ #{id}.",
+                    IsRead = false,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Notifications.Add(ownerNotif);
+                ownerNotifs.Add(ownerNotif);
+            }
+
+            // Ghi tất cả thay đổi (Trạng thái đơn + Tất cả Noti) vào Database 1 lần duy nhất
+            await _context.SaveChangesAsync();
+
+            // 7. Bắn SignalR Real-time cho KHÁCH HÀNG
+            await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveNotification", new
+            {
+                id = customerNotif.Id,
+                title = customerNotif.Title,
+                content = customerNotif.Content,
+                createdAt = customerNotif.CreatedAt,
+                isRead = false
+            });
+
+            // 8. Bắn SignalR Real-time cho các CHỦ CƠ SỞ (OWNER)
+            foreach (var notif in ownerNotifs)
+            {
+                await _hubContext.Clients.User(notif.UserId.ToString()).SendAsync("ReceiveNotification", new
+                {
+                    id = notif.Id,
+                    title = notif.Title,
+                    content = notif.Content,
+                    createdAt = notif.CreatedAt,
+                    isRead = false
+                });
+            }
+
+            return Ok(new { success = true, message = "Đã hủy đơn đặt chỗ thành công." });
         }
     }
 }

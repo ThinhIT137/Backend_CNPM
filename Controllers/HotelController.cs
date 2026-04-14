@@ -248,5 +248,68 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Xóa phòng thành công" });
         }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllHotelsForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            try
+            {
+                var query = _context.Hotels.AsQueryable();
+
+                // Lọc theo từ khóa (Tên hoặc Địa chỉ)
+                if (!string.IsNullOrEmpty(keyword))
+                {
+                    query = query.Where(h => h.Name.Contains(keyword) || h.Address.Contains(keyword));
+                }
+
+                // Lọc theo trạng thái
+                if (!string.IsNullOrEmpty(status))
+                {
+                    query = query.Where(h => h.Status == status);
+                }
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(h => h.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var hotelIds = items.Select(h => h.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "hotel" && hotelIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    createdAt = a.CreatedAt,
+                    createdByUserId = a.Created_By_UserId, // Để biết ai là chủ
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
+        }
     }
 }

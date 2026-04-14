@@ -1,10 +1,12 @@
 ﻿using backend.DTO;
 using backend.Exceptions;
+using backend.Hubs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
@@ -21,12 +23,13 @@ namespace backend.Controllers
         private readonly IJwtService _jwtService;
         private readonly CnpmContext _context;
         private readonly ITouristAreaService _touristAreaService;
-
-        public TouristAreaController(IJwtService jwtService, CnpmContext cnpmContext, ITouristAreaService touristAreaService)
+        private readonly IHubContext<NotificationHub> _hubContext;
+        public TouristAreaController(IJwtService jwtService, CnpmContext cnpmContext, ITouristAreaService touristAreaService, IHubContext<NotificationHub> hubContext)
         {
             _context = cnpmContext;
             _jwtService = jwtService;
             _touristAreaService = touristAreaService;
+            _hubContext = hubContext;
         }
 
         [Authorize]
@@ -498,13 +501,59 @@ namespace backend.Controllers
         [HttpPut("approve/{id:int}")]
         public async Task<IActionResult> ApproveTouristArea(int id, [FromBody] ApprovalRequest req)
         {
-            // Tìm trong DB
+            // 1. Tìm trong DB
             var area = await _context.TouristAreas.FindAsync(id);
             if (area == null) return NotFound(new { success = false, message = "Không tìm thấy khu du lịch" });
 
-            // Đổi status
+            // 2. Đổi status
             area.Status = req.Status; // "Active" hoặc "Rejected"
+
+            // ===============================================
+            // 3. TẠO THÔNG BÁO CHO NGƯỜI TẠO KHU DU LỊCH
+            // ===============================================
+            string notifTitle = "";
+            string notifContent = "";
+
+            if (req.Status == "Active" || req.Status == "Approved")
+            {
+                notifTitle = "✅ Khu du lịch đã được duyệt";
+                notifContent = $"Tuyệt vời! Khu du lịch '{area.Name}' của bạn đã được Admin phê duyệt và hiển thị trên hệ thống.";
+            }
+            else if (req.Status == "Rejected")
+            {
+                notifTitle = "❌ Khu du lịch bị từ chối";
+                notifContent = $"Rất tiếc, khu du lịch '{area.Name}' của bạn chưa đạt yêu cầu và đã bị từ chối. Vui lòng kiểm tra lại thông tin.";
+            }
+
+            // Tạo object thông báo
+            var notif = new Notification
+            {
+                UserId = area.Created_By_UserId, // Lấy ID của người đã đăng bài này
+                Title = notifTitle,
+                Content = notifContent,
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            };
+
+            _context.Notifications.Add(notif);
+
+            // 4. Lưu tất cả thay đổi (cả status của Area và Notification mới) vào DB
             await _context.SaveChangesAsync();
+
+            // ===============================================
+            // 5. BẮN THÔNG BÁO REAL-TIME QUA SIGNALR
+            // ===============================================
+            if (_hubContext != null && area.Created_By_UserId != Guid.Empty)
+            {
+                await _hubContext.Clients.User(area.Created_By_UserId.ToString()).SendAsync("ReceiveNotification", new
+                {
+                    id = notif.Id,
+                    title = notif.Title,
+                    content = notif.Content,
+                    createdAt = notif.CreatedAt,
+                    isRead = false
+                });
+            }
 
             return Ok(new { success = true, message = $"Đã duyệt khu du lịch thành {req.Status}" });
         }
@@ -541,6 +590,72 @@ namespace backend.Controllers
                     address = a.Address,
                     rating_average = a.RatingAverage,
                     status = a.Status,
+                    coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
+                });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = dataResult,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        currentPage = page
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi: " + ex.Message });
+            }
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllTouristAreasForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
+        {
+            try
+            {
+                var query = _context.TouristAreas.AsQueryable();
+
+                // Lọc theo từ khóa (Tên hoặc Địa chỉ)
+                if (!string.IsNullOrEmpty(keyword))
+                {
+                    query = query.Where(a => a.Name.Contains(keyword) || a.Address.Contains(keyword));
+                }
+
+                // Lọc theo trạng thái
+                if (!string.IsNullOrEmpty(status))
+                {
+                    query = query.Where(a => a.Status == status);
+                }
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var areaIds = items.Select(a => a.Id).ToList();
+                var images = await _context.Imgs
+                    .Where(img => img.EntityType == "tourist_area" && areaIds.Contains(img.EntityId) && img.IsCover)
+                    .ToListAsync();
+
+                var dataResult = items.Select(a => new
+                {
+                    id = a.Id,
+                    name = a.Name,
+                    title = a.Title,
+                    address = a.Address,
+                    description = a.Description,
+                    rating_average = a.RatingAverage,
+                    status = a.Status,
+                    createdAt = a.CreatedAt,
+                    createdByUserId = a.Created_By_UserId,
+                    latitude = a.Latitude,
+                    longitude = a.Longitude,
                     coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
                 });
 

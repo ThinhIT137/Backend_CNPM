@@ -308,5 +308,84 @@ namespace backend.Services
                 currentPage = page
             };
         }
+
+        public async Task<object> GetMyFavoritesAsync(Guid userId, int page = 1, int pageSize = 10)
+        {
+            // 1. Lấy danh sách Favorite của user (Phân trang)
+            var query = _context.Favorites.Where(f => f.UserId == userId).AsNoTracking();
+            var totalCount = await query.CountAsync();
+
+            var favorites = await query
+                .OrderByDescending(f => f.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            if (!favorites.Any())
+            {
+                return new { items = new List<object>(), totalCount = 0, currentPage = page, totalPages = 0 };
+            }
+
+            // 2. Gom nhóm ID theo EntityType để tránh lỗi N+1
+            var hotelIds = favorites.Where(f => f.EntityType == "hotel").Select(f => f.EntityId).ToList();
+            var tourIds = favorites.Where(f => f.EntityType == "tour").Select(f => f.EntityId).ToList();
+            var areaIds = favorites.Where(f => f.EntityType == "tourist_area").Select(f => f.EntityId).ToList();
+            var placeIds = favorites.Where(f => f.EntityType == "tourist_place").Select(f => f.EntityId).ToList();
+
+            // 3. Query data từ các bảng tương ứng (Lấy thêm tên, sao, hình cover nếu cần)
+            // Lưu ý: Tùy vào cấu trúc Model của em mà sửa tên trường Name/Title cho đúng nhé
+            var hotels = hotelIds.Any() ? await _context.Hotels.Where(h => hotelIds.Contains(h.Id)).ToDictionaryAsync(h => h.Id, h => h) : new();
+            var tours = tourIds.Any() ? await _context.Tours.Where(t => tourIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t) : new();
+            var areas = areaIds.Any() ? await _context.TouristAreas.Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a) : new();
+            var places = placeIds.Any() ? await _context.TouristPlaces.Where(p => placeIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p) : new();
+
+            // 4. Map dữ liệu thành một DTO chung để Frontend dễ render List
+            var resultItems = favorites.Select(f =>
+            {
+                string title = "Không xác định";
+                decimal? rating = 0;
+
+                // Tùy biến mapping theo từng loại
+                if (f.EntityType == "hotel" && f.EntityId.HasValue && hotels.ContainsKey(f.EntityId.Value))
+                {
+                    title = hotels[f.EntityId.Value].Title; // Đổi thành thuộc tính Name/Title của em
+                    rating = hotels[f.EntityId.Value].RatingAverage;
+                }
+                else if (f.EntityType == "tour" && f.EntityId.HasValue && tours.ContainsKey(f.EntityId.Value))
+                {
+                    title = tours[f.EntityId.Value].Title;
+                    rating = tours[f.EntityId.Value].RatingAverage;
+                }
+                else if (f.EntityType == "tourist_area" && f.EntityId.HasValue && areas.ContainsKey(f.EntityId.Value))
+                {
+                    title = areas[f.EntityId.Value].Title;
+                    rating = areas[f.EntityId.Value].RatingAverage;
+                }
+                else if (f.EntityType == "tourist_place" && f.EntityId.HasValue && places.ContainsKey(f.EntityId.Value))
+                {
+                    title = places[f.EntityId.Value].Title;
+                    rating = places[f.EntityId.Value].RatingAverage;
+                }
+
+                return new
+                {
+                    favoriteId = f.Id,
+                    entityId = f.EntityId,
+                    entityType = f.EntityType,
+                    title = title,
+                    rating = rating,
+                    savedAt = f.CreatedAt
+                    // Em có thể join thêm bảng Imgs để lấy CoverImageUrl ở đây nếu muốn giao diện đẹp hơn
+                };
+            }).ToList();
+
+            return new
+            {
+                items = resultItems,
+                totalCount = totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                currentPage = page
+            };
+        }
     }
 }

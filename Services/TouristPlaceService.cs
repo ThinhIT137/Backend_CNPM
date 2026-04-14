@@ -187,7 +187,7 @@ namespace backend.Services
                 Longitude = req.Longitude,
                 Tourist_Area_Id = req.Tourist_Area_Id,
                 Created_By_UserId = ownerId,
-                Status = "Approved", // Trả lại sự trong sạch cho sếp =)))
+                Status = "Pending",
                 CreatedAt = DateTime.Now
             };
             _context.TouristPlaces.Add(place);

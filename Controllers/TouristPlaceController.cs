@@ -1,9 +1,11 @@
 ﻿using backend.DTO;
 using backend.Exceptions;
+using backend.Hubs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using static System.Net.Mime.MediaTypeNames;
@@ -19,13 +21,15 @@ namespace backend.Controllers
         private readonly ITouristPlaceService _touristPlaceService;
         private readonly IHotelService _hottelService;
         private readonly ITourService _tourService;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-        public TouristPlaceController(CnpmContext context, ITouristPlaceService touristPlaceService, IHotelService hottelService, ITourService tourService)
+        public TouristPlaceController(CnpmContext context, ITouristPlaceService touristPlaceService, IHotelService hottelService, ITourService tourService, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
             _touristPlaceService = touristPlaceService;
             _hottelService = hottelService;
             _tourService = tourService;
+            _hubContext = hubContext;
         }
 
         [HttpGet("tourist_place")]
@@ -315,22 +319,117 @@ namespace backend.Controllers
         // ADMIN: LẤY DANH SÁCH ĐỊA ĐIỂM ĐANG CHỜ DUYỆT
         // GET: /api/TouristPlace/admin/pending
         // ==========================================
+        // ==========================================
+        // 2. ADMIN: DUYỆT ĐỊA ĐIỂM DU LỊCH (TOURIST PLACE)
+        // ==========================================
         [Authorize(Roles = "Admin")]
-        [HttpGet("admin/pending")]
-        public async Task<IActionResult> GetAllPendingTouristPlaces([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        [HttpPut("admin/{id}/status")]
+        public async Task<IActionResult> UpdateTouristPlaceStatus(int id, [FromBody] ApprovalRequest req)
+        {
+            // 1. Tìm địa điểm trong DB
+            var place = await _context.TouristPlaces.FindAsync(id);
+            if (place == null)
+                return NotFound(new { success = false, message = "Không tìm thấy địa điểm du lịch này" });
+
+            // 2. Validate trạng thái (Ví dụ: Active hoặc Rejected)
+            var validStatuses = new[] { "Active", "Rejected" };
+            if (!validStatuses.Contains(req.Status))
+                return BadRequest(new { success = false, message = "Trạng thái không hợp lệ. Chỉ chấp nhận: Active, Rejected" });
+
+            if (place.Status == req.Status)
+                return Ok(new { success = true, message = $"Địa điểm đã ở trạng thái {req.Status} rồi." });
+
+            // 3. Cập nhật trạng thái
+            place.Status = req.Status;
+
+            // 4. TẠO THÔNG BÁO CHO NGƯỜI TẠO ĐỊA ĐIỂM (Nếu có lưu ID người tạo)
+            // Giả sử bảng TouristPlaces của bro có trường Created_By_UserId
+            if (place.Created_By_UserId != null && place.Created_By_UserId != Guid.Empty)
+            {
+                string notifTitle = "";
+                string notifContent = "";
+
+                if (req.Status == "Active")
+                {
+                    notifTitle = "✅ Địa điểm đã được duyệt";
+                    notifContent = $"Tuyệt vời! Địa điểm '{place.Name}' bạn đăng đã được quản trị viên duyệt và hiển thị trên hệ thống.";
+                }
+                else if (req.Status == "Rejected")
+                {
+                    notifTitle = "❌ Địa điểm bị từ chối";
+                    notifContent = $"Rất tiếc, địa điểm '{place.Name}' của bạn không đáp ứng đủ tiêu chuẩn và đã bị từ chối.";
+                }
+
+                if (!string.IsNullOrEmpty(notifTitle))
+                {
+                    var notif = new Notification
+                    {
+                        UserId = (Guid)place.Created_By_UserId, // ID của chủ cơ sở/người dùng
+                        Title = notifTitle,
+                        Content = notifContent,
+                        IsRead = false,
+                        CreatedAt = DateTime.Now
+                    };
+
+                    _context.Notifications.Add(notif);
+                    await _context.SaveChangesAsync(); // Lưu để lấy ID thông báo
+
+                    // 5. Bắn thông báo Real-time cho User
+                    await _hubContext.Clients.User(place.Created_By_UserId.ToString()!).SendAsync("ReceiveNotification", new
+                    {
+                        id = notif.Id,
+                        title = notif.Title,
+                        content = notif.Content,
+                        createdAt = notif.CreatedAt,
+                        isRead = false
+                    });
+                }
+                else
+                {
+                    await _context.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                // Nếu không có thông tin người tạo thì chỉ lưu DB thôi
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { success = true, message = $"Đã cập nhật trạng thái địa điểm thành: {req.Status}" });
+        }
+
+        // ==========================================
+        // ADMIN: LẤY TẤT CẢ ĐỊA ĐIỂM DU LỊCH (ĐỂ QUẢN LÝ TỔNG)
+        // GET: /api/TouristPlace/admin/all
+        // ==========================================
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllTouristPlacesForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null, [FromQuery] string? status = null)
         {
             try
             {
-                var query = _context.TouristPlaces.Where(p => p.Status == "Pending");
+                var query = _context.TouristPlaces.AsQueryable();
+
+                // Lọc theo từ khóa (Tên hoặc Địa chỉ)
+                if (!string.IsNullOrEmpty(keyword))
+                {
+                    query = query.Where(a => a.Name.Contains(keyword) || a.Address.Contains(keyword));
+                }
+
+                // Lọc theo trạng thái
+                if (!string.IsNullOrEmpty(status))
+                {
+                    query = query.Where(a => a.Status == status);
+                }
 
                 var totalCount = await query.CountAsync();
                 var items = await query
-                    .OrderByDescending(p => p.CreatedAt)
+                    .OrderByDescending(a => a.CreatedAt)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
 
-                var placeIds = items.Select(p => p.Id).ToList();
+                var placeIds = items.Select(a => a.Id).ToList();
                 var images = await _context.Imgs
                     .Where(img => img.EntityType == "tourist_place" && placeIds.Contains(img.EntityId) && img.IsCover)
                     .ToListAsync();
@@ -341,8 +440,13 @@ namespace backend.Controllers
                     name = a.Name,
                     title = a.Title,
                     address = a.Address,
+                    description = a.Description,
                     rating_average = a.RatingAverage,
                     status = a.Status,
+                    createdAt = a.CreatedAt,
+                    createdByUserId = a.Created_By_UserId,
+                    latitude = a.Latitude,
+                    longitude = a.Longitude,
                     coverImageUrl = images.FirstOrDefault(img => img.EntityId == a.Id)?.url ?? "/Img/ImgNull.jpg"
                 });
 
